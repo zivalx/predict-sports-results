@@ -12,7 +12,7 @@ Produce a daily pre-match forecast feed for the FIFA World Cup 2026, covering:
 2. **Tournament-level probabilities** per team (champion, runner-up, semifinal appearance, top of group).
 3. **Top-scorer probabilities** per player (Golden Boot race).
 
-Forecasts refresh daily and after every completed match. Output is a Markdown digest (picked up by the existing `whatsapp-daily-bot`) and a lightweight HTMX dashboard. The product surface is the *rationale* — calibrated probabilities plus a short Claude-written explanation, not raw numbers.
+The system starts producing forecasts **as soon as it is deployed** — meaningfully ahead of the tournament (target: ~2 months before kickoff). Forecasts refresh daily from that point on, plus an extra refresh after every completed match once the tournament begins. Output is a Markdown digest (picked up by the existing `whatsapp-daily-bot`) and a lightweight HTMX dashboard. The product surface is the *rationale* — calibrated probabilities plus a short Claude-written explanation, not raw numbers.
 
 Polymarket is treated as the wisdom-of-crowds anchor; the model produces an independent estimate; the rationale surfaces where they diverge ("edge").
 
@@ -24,6 +24,19 @@ Polymarket is treated as the wisdom-of-crowds anchor; the model produces an inde
 - Generalization to other tournaments or sports (kept as clean seams only)
 - Calibration of model weights from prior tournaments — start with sensible priors, recalibrate after group stage
 - Snapshot-delta UI in the daily digest (storage of snapshots is kept for retro-calibration; visual day-over-day deltas are deferred)
+
+## 2.1 Lifecycle phases
+
+The system runs continuously across four phases. The pipeline is the same; what differs is which sections of the daily output have content and which signals dominate.
+
+| Phase | Window | What we have | What dominates the digest |
+|---|---|---|---|
+| **Pre-tournament** | T−2mo → T−1d | All 48 group fixtures known; no completed matches; Polymarket champion + top-scorer markets active; per-match Polymarket markets appear progressively; friendlies + squad news | Tournament outlook, Golden Boot race, "notable movers" driven by squad selection / injury news / friendly results |
+| **Group stage** | T → T+~2wk | All 48 fixtures, results landing daily; knockout slots filling | Today's matches + tournament outlook (now constrained by partial standings) + Golden Boot |
+| **Knockout** | T+~2wk → final | Fixed bracket, two matches per day tapering to one | Today's match (deep dive) + remaining tournament outlook + Golden Boot |
+| **Post-tournament** | Final → T+1wk | Full results | Retro-calibration report; system can be shut down |
+
+Pre-tournament is **not** an empty mode — it's where the tournament-outlook and top-scorer forecasts deliver almost all of the system's value. The first daily digest goes out the day the system is deployed, with "next matches" replacing "today's matches" until the tournament begins.
 
 ## 3. Architecture
 
@@ -171,9 +184,10 @@ A single batch job, idempotent, triggered by APScheduler.
 
 ```
 Triggers:
-  - Daily at 09:00 local (always run)
+  - Daily at 09:00 local (always run, every phase including pre-tournament)
   - Post-match: poll sports-data API every 5 min during match windows;
                 when a match flips to FT, enqueue a refresh
+                (group + knockout phases only)
   - Manual: POST /refresh
 ```
 
@@ -196,8 +210,10 @@ Steps 1–6 are I/O bound and run concurrently where dependencies allow; step 8 
 
 ## 9. Daily output format
 
+Pre-tournament digests replace the "Today's matches" section with "Next matches" (3 nearest fixtures with current Polymarket lines and any notable injury / lineup news per side). Group + knockout digests show today's fixtures as below.
+
 ```markdown
-# World Cup — 2026-06-15
+# World Cup — 2026-06-15  ·  Day 4 of group stage  (or "T−47 days" pre-tournament)
 
 ## Today's matches
 
@@ -301,7 +317,9 @@ worldcap/
 
 ## 13. Acceptance for v0
 
-- Daily Markdown digest renders for every day from kickoff through the final
+- Daily Markdown digest renders for every day from system deployment (target T−2mo) through the final
+- Pre-tournament digests omit "Today's matches" and lead with tournament outlook + Golden Boot race; "Next matches" preview lists the 3 nearest fixtures
+- The first daily digest is producible the day the system is deployed, with no completed-match data required
 - Simulator produces tournament-level probabilities that sum to 100% (hard invariant)
 - Smoke check: day-1 top-5 team `p_champion` are within ±10pp of Polymarket; large divergence is a flag to investigate priors, not a hard failure
 - Top-scorer watchlist refresh triggers correctly after a hat-trick from an off-watchlist player
