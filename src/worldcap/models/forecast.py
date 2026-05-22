@@ -28,3 +28,19 @@ class TournamentForecast(SQLModel, table=True):
     p_top_group: float = 0.0
     poly_p_champion: Optional[float] = None
     edge_vs_poly: float = 0.0
+
+
+class MatchForecast(SQLModel, table=True):
+    __tablename__ = "match_forecast"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    snapshot_id: int = Field(foreign_key="forecast_snapshot.id", index=True)
+    match_id: int = Field(foreign_key="match.id", index=True)
+    p_home: float
+    p_draw: float
+    p_away: float
+    p_home_poly: Optional[float] = None
+    p_draw_poly: Optional[float] = None
+    p_away_poly: Optional[float] = None
+    edge_vs_poly: float = 0.0
+    model_version: str = "elo-v0"
