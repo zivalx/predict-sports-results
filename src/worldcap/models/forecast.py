@@ -11,7 +11,7 @@ class ForecastSnapshot(SQLModel, table=True):
     competition_id: int = Field(foreign_key="competition.id", index=True)
     snapshot_date: datetime
     snapshot_trigger: str  # daily | post_match | manual
-    state_hash: str
+    poly_odds_hash: str
     model_version: str = "naive-poly-only-v0"
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 

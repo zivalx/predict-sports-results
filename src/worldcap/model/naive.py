@@ -46,7 +46,7 @@ async def generate_naive_forecast(trigger: str = "manual") -> ForecastSnapshot:
             competition_id=comp.id,
             snapshot_date=datetime.now(timezone.utc),
             snapshot_trigger=trigger,
-            state_hash=_state_hash(outcomes),
+            poly_odds_hash=_state_hash(outcomes),
             model_version="naive-poly-only-v0",
         )
         session.add(snap)

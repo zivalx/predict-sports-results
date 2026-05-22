@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 from typing import Optional
 
+from worldcap.config import get_settings
 from worldcap.ingest.fixtures import ingest_teams_and_fixtures
 from worldcap.ingest.polymarket import ingest_outright_winner
 from worldcap.ingest.sports_data import FootballDataClient
@@ -19,10 +20,23 @@ async def run_refresh(
     football_client,
     poly_collector,
     as_of: Optional[datetime] = None,
+    competition_id: Optional[int] = None,
 ) -> ForecastSnapshot:
     """End-to-end pipeline: ingest -> forecast -> render -> write. Returns the snapshot."""
 
     as_of = as_of or datetime.now(timezone.utc)
+
+    # Lookup competition_id if not provided
+    if competition_id is None:
+        from sqlmodel import select
+        from worldcap.db import get_session
+        from worldcap.models import Competition
+        settings = get_settings()
+        async with get_session() as session:
+            comp = (await session.execute(
+                select(Competition).where(Competition.code == settings.db_competition_code)
+            )).scalar_one()
+            competition_id = comp.id
 
     fixtures_summary = await ingest_teams_and_fixtures(football_client)
     log.info("ingest.fixtures", **fixtures_summary)

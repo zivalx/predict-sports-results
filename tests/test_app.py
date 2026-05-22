@@ -4,8 +4,7 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 
 from worldcap.api.app import build_app
-from worldcap.config import get_settings
-from worldcap.db import init_db, reset_engine_cache
+from worldcap.db import init_db
 from scripts.seed_competition import seed
 
 
@@ -29,8 +28,6 @@ def fake_clients():
 
 @pytest.mark.asyncio
 async def test_healthz_ok():
-    get_settings.cache_clear()
-    reset_engine_cache()
     app = build_app(football_client=AsyncMock(), poly_collector=MagicMock())
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
@@ -41,8 +38,6 @@ async def test_healthz_ok():
 
 @pytest.mark.asyncio
 async def test_post_refresh_runs_pipeline(fake_clients):
-    get_settings.cache_clear()
-    reset_engine_cache()
     await init_db()
     await seed()
 

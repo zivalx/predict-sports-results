@@ -3,8 +3,7 @@ from datetime import datetime, timezone
 import pytest
 from sqlmodel import select
 
-from worldcap.config import get_settings
-from worldcap.db import get_session, init_db, reset_engine_cache
+from worldcap.db import get_session, init_db
 from worldcap.model.naive import generate_naive_forecast
 from worldcap.models import OddsSnapshot, Team
 from worldcap.models.tournament import Competition, Match
@@ -14,8 +13,6 @@ from scripts.seed_competition import seed
 
 @pytest.mark.asyncio
 async def test_renders_pretournament_digest_with_outlook_and_next_fixtures():
-    get_settings.cache_clear()
-    reset_engine_cache()
     await init_db()
     await seed()
 

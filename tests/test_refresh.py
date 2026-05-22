@@ -5,7 +5,7 @@ import pytest
 from sqlmodel import select
 
 from worldcap.config import get_settings
-from worldcap.db import get_session, init_db, reset_engine_cache
+from worldcap.db import get_session, init_db
 from worldcap.ingest.sports_data import FixtureDTO, TeamDTO
 from worldcap.jobs.refresh import run_refresh
 from worldcap.models import ForecastSnapshot, OddsSnapshot, Team, TournamentForecast
@@ -52,8 +52,6 @@ def fake_poly_collector():
 
 @pytest.mark.asyncio
 async def test_run_refresh_end_to_end(fake_football_client, fake_poly_collector, monkeypatch):
-    get_settings.cache_clear()
-    reset_engine_cache()
     await init_db()
     await seed()
 

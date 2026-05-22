@@ -1,16 +1,13 @@
 import pytest
 from sqlmodel import select
 
-from worldcap.config import get_settings
-from worldcap.db import get_session, init_db, reset_engine_cache
+from worldcap.db import get_session, init_db
 from worldcap.models import Competition, TournamentFormat
 from scripts.seed_competition import seed
 
 
 @pytest.mark.asyncio
 async def test_seed_inserts_competition_and_format():
-    get_settings.cache_clear()
-    reset_engine_cache()
     await init_db()
 
     await seed()
@@ -29,8 +26,6 @@ async def test_seed_inserts_competition_and_format():
 
 @pytest.mark.asyncio
 async def test_seed_is_idempotent():
-    get_settings.cache_clear()
-    reset_engine_cache()
     await init_db()
 
     await seed()
