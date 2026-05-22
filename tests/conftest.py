@@ -3,6 +3,7 @@ import os
 from pathlib import Path
 
 import pytest
+import respx
 
 
 @pytest.fixture(autouse=True)
@@ -17,3 +18,9 @@ def _isolated_env(tmp_path, monkeypatch):
     monkeypatch.setenv("FOOTBALL_DATA_API_KEY", "test-key")
     monkeypatch.setenv("LOG_LEVEL", "WARNING")
     yield
+
+
+@pytest.fixture
+def respx_mock():
+    with respx.mock(assert_all_called=False) as router:
+        yield router
