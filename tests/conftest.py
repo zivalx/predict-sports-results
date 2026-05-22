@@ -1,5 +1,8 @@
-import asyncio
 import os
+
+# Skip building the real app on module import (no credentials in tests).
+os.environ["WORLDCAP_SKIP_DEFAULT_APP"] = "1"
+
 from pathlib import Path
 
 import pytest
@@ -8,7 +11,6 @@ import respx
 
 @pytest.fixture(autouse=True)
 def _isolated_env(tmp_path, monkeypatch):
-    """Each test gets its own SQLite file and output dir."""
     db_path = tmp_path / "worldcap.db"
     output_dir = tmp_path / "output"
     output_dir.mkdir()
