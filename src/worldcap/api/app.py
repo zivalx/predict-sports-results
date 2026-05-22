@@ -44,7 +44,10 @@ def build_app(football_client=None, poly_collector=None) -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
-        scheduler = build_scheduler(refresh_fn=lambda: _trigger_refresh("daily"))
+        scheduler = build_scheduler(
+            refresh_fn=lambda: _trigger_refresh("daily"),
+            post_match_fn=lambda: _trigger_refresh("post_match"),
+        )
         scheduler.start()
         try:
             yield
