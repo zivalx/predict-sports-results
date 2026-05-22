@@ -1,0 +1,15 @@
+# World Cup — {{ as_of.strftime('%Y-%m-%d') }}  ·  {{ phase_label }}
+
+## Tournament outlook
+
+| # | Team | P(champion) | Polymarket | Edge |
+|---|------|-------------|------------|------|
+{%- for row in outlook %}
+| {{ loop.index }} | {{ row.team_name }} | {{ '%.0f' % (row.p_champion * 100) }}% | {{ '%.0f' % (row.poly_p_champion * 100) }}% | {{ '%+.0fpp' % (row.edge_vs_poly * 100) }} |
+{%- endfor %}
+
+## Next matches
+
+{%- for m in next_matches %}
+- {{ m.home_name }} vs {{ m.away_name }} · {{ m.kickoff_utc.strftime('%Y-%m-%d %H:%M UTC') }} · Group {{ m.group_label }}
+{%- endfor %}
