@@ -9,11 +9,9 @@ from worldcap.model.elo import (
 )
 
 
-def test_expected_score_equal_ratings_with_home_advantage():
-    # Two teams at 1500; home advantage = +100 elo points.
-    # E_home(1500, 1500) = 1 / (1 + 10^((1500-(1500+100))/400)) = 1 / (1 + 10^(-0.25))
-    p = expected_score(1500.0, 1500.0)
-    assert 0.60 < p < 0.66  # home favored due to home advantage
+def test_expected_score_equal_ratings_is_half():
+    # No home advantage in expected_score — pure Elo, equal ratings → 0.5
+    assert expected_score(1500.0, 1500.0) == pytest.approx(0.5, abs=1e-9)
 
 
 def test_expected_score_complementary():
