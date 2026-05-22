@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from sqlmodel import Field, SQLModel
@@ -13,7 +13,7 @@ class ForecastSnapshot(SQLModel, table=True):
     snapshot_trigger: str  # daily | post_match | manual
     state_hash: str
     model_version: str = "naive-poly-only-v0"
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 class TournamentForecast(SQLModel, table=True):

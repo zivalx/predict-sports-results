@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 
 from sqlmodel import select
 
+from worldcap.config import get_settings
 from worldcap.db import get_session
 from worldcap.models import (
     Competition,
@@ -24,7 +25,7 @@ async def generate_naive_forecast(trigger: str = "manual") -> ForecastSnapshot:
     Returns the persisted ForecastSnapshot."""
 
     async with get_session() as session:
-        comp = (await session.execute(select(Competition).where(Competition.code == "WC2026"))).scalar_one()
+        comp = (await session.execute(select(Competition).where(Competition.code == get_settings().db_competition_code))).scalar_one()
 
         latest = (await session.execute(
             select(OddsSnapshot)

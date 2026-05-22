@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 
 from sqlmodel import select
 
+from worldcap.config import get_settings
 from worldcap.db import get_session
 from worldcap.models import Competition, TournamentFormat
 
@@ -24,18 +25,11 @@ WC2026_FORMAT = TournamentFormat(
     ],
 )
 
-WC2026 = Competition(
-    name="FIFA World Cup 2026",
-    code="WC2026",
-    format_id=0,  # filled in after format insert
-    start_date=datetime(2026, 6, 11, tzinfo=timezone.utc),
-    end_date=datetime(2026, 7, 19, tzinfo=timezone.utc),
-)
-
 
 async def seed() -> None:
+    settings = get_settings()
     async with get_session() as session:
-        existing = (await session.execute(select(Competition).where(Competition.code == "WC2026"))).scalar_one_or_none()
+        existing = (await session.execute(select(Competition).where(Competition.code == settings.db_competition_code))).scalar_one_or_none()
         if existing:
             return
 
@@ -43,7 +37,13 @@ async def seed() -> None:
         session.add(fmt)
         await session.flush()
 
-        comp = Competition(**WC2026.model_dump(exclude={"id", "format_id"}), format_id=fmt.id)
+        comp = Competition(
+            name="FIFA World Cup 2026",
+            code=settings.db_competition_code,
+            format_id=fmt.id,
+            start_date=datetime(2026, 6, 11, tzinfo=timezone.utc),
+            end_date=datetime(2026, 7, 19, tzinfo=timezone.utc),
+        )
         session.add(comp)
         await session.commit()
 

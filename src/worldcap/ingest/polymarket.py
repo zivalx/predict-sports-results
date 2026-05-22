@@ -2,10 +2,9 @@ from datetime import datetime, timezone
 
 from sqlmodel import select
 
+from worldcap.config import get_settings
 from worldcap.db import get_session
 from worldcap.models import Competition, OddsSnapshot, Team
-
-OUTRIGHT_QUERY = "FIFA World Cup 2026 winner"
 
 
 def _find_outright_winner_market(markets):
@@ -34,7 +33,7 @@ async def ingest_outright_winner(collector) -> dict[str, int]:
 
     async with get_session() as session:
         comp = (await session.execute(
-            select(Competition).where(Competition.code == "WC2026")
+            select(Competition).where(Competition.code == get_settings().db_competition_code)
         )).scalar_one()
         teams = (await session.execute(select(Team))).scalars().all()
         team_names = {t.name for t in teams}

@@ -10,7 +10,7 @@ from worldcap.db import get_session
 from worldcap.jobs.refresh import run_refresh
 from worldcap.jobs.scheduler import build_scheduler
 from worldcap.log import configure_logging, get_logger
-from worldcap.models import ForecastSnapshot, Team, TournamentForecast
+from worldcap.models import Competition, ForecastSnapshot, Team, TournamentForecast
 
 
 log = get_logger(__name__)
@@ -67,8 +67,15 @@ def build_app(football_client=None, poly_collector=None) -> FastAPI:
     @app.get("/forecast/latest")
     async def forecast_latest():
         async with get_session() as session:
+            comp = (await session.execute(
+                select(Competition).where(Competition.code == get_settings().db_competition_code)
+            )).scalar_one_or_none()
+            if comp is None:
+                return {"snapshot": None, "outlook": []}
             snap = (await session.execute(
-                select(ForecastSnapshot).order_by(ForecastSnapshot.snapshot_date.desc())
+                select(ForecastSnapshot)
+                .where(ForecastSnapshot.competition_id == comp.id)
+                .order_by(ForecastSnapshot.snapshot_date.desc())
             )).scalars().first()
             if snap is None:
                 return {"snapshot": None, "outlook": []}

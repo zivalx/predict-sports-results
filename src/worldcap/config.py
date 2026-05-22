@@ -14,8 +14,8 @@ class Settings(BaseSettings):
     daily_refresh_cron: str = "0 9 * * *"
     log_level: str = "INFO"
 
-    competition_code: str = "WC"  # football-data.org code for World Cup
-    competition_season: int = 2026
+    competition_code: str = "WC"  # football-data.org API code
+    db_competition_code: str = "WC2026"  # internal/seed code (distinct from competition_code)
 
 
 @lru_cache

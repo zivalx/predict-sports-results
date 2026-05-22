@@ -16,7 +16,7 @@ async def ingest_teams_and_fixtures(client: FootballDataClient) -> dict[str, int
 
     async with get_session() as session:
         comp = (await session.execute(
-            select(Competition).where(Competition.code == "WC2026")
+            select(Competition).where(Competition.code == get_settings().db_competition_code)
         )).scalar_one()
 
         # Upsert teams
