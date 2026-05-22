@@ -8,7 +8,13 @@ from worldcap.config import get_settings
 from worldcap.db import get_session, init_db
 from worldcap.ingest.sports_data import FixtureDTO, TeamDTO
 from worldcap.jobs.refresh import run_refresh
-from worldcap.models import ForecastSnapshot, OddsSnapshot, Team, TournamentForecast
+from worldcap.models import (
+    ForecastSnapshot,
+    MatchForecast,
+    OddsSnapshot,
+    Team,
+    TournamentForecast,
+)
 from scripts.seed_competition import seed
 
 
@@ -51,26 +57,35 @@ def fake_poly_collector():
 
 
 @pytest.mark.asyncio
-async def test_run_refresh_end_to_end(fake_football_client, fake_poly_collector, monkeypatch):
+async def test_run_refresh_end_to_end(fake_football_client, fake_poly_collector):
     await init_db()
     await seed()
 
+    # Use an as_of close to the fixture kickoff (default horizon is 14 days; the
+    # fixture is set for 2026-06-11, so we put as_of at 2026-06-05).
+    as_of = datetime(2026, 6, 5, tzinfo=timezone.utc)
     snap = await run_refresh(
         trigger="manual",
         football_client=fake_football_client,
         poly_collector=fake_poly_collector,
-        as_of=datetime(2026, 5, 21, tzinfo=timezone.utc),
+        as_of=as_of,
     )
 
     assert isinstance(snap, ForecastSnapshot)
     async with get_session() as session:
         teams = (await session.execute(select(Team))).scalars().all()
         odds = (await session.execute(select(OddsSnapshot))).scalars().all()
-        forecasts = (await session.execute(select(TournamentForecast))).scalars().all()
+        tournament_forecasts = (await session.execute(select(TournamentForecast))).scalars().all()
+        match_forecasts = (await session.execute(select(MatchForecast))).scalars().all()
     assert len(teams) == 2
     assert len(odds) == 1
-    assert len(forecasts) == 2
+    assert len(tournament_forecasts) == 2  # Brazil + France from outright market
+    assert len(match_forecasts) == 1       # Brazil vs France within horizon
+
+    mf = match_forecasts[0]
+    assert mf.p_home + mf.p_draw + mf.p_away == pytest.approx(1.0, abs=1e-9)
+    assert mf.model_version == "elo-v0"
 
     out_dir = get_settings().digest_output_dir
-    assert (out_dir / "2026-05-21.md").exists()
+    assert (out_dir / "2026-06-05.md").exists()
     assert get_settings().whatsapp_pickup_path.exists()
