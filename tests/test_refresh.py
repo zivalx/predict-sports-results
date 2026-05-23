@@ -79,7 +79,7 @@ async def test_run_refresh_end_to_end(fake_football_client, fake_poly_collector)
         match_forecasts = (await session.execute(select(MatchForecast))).scalars().all()
     assert len(teams) == 2
     assert len(odds) == 1
-    assert len(tournament_forecasts) == 2  # Brazil + France from outright market
+    assert len(tournament_forecasts) == 0  # simulator skips when WC groups not fully seeded
     assert len(match_forecasts) == 1       # Brazil vs France within horizon
 
     mf = match_forecasts[0]
