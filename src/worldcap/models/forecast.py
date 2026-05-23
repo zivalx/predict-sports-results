@@ -45,3 +45,4 @@ class MatchForecast(SQLModel, table=True):
     p_away_poly: Optional[float] = None
     edge_vs_poly: float = 0.0
     model_version: str = "elo-v0"
+    rationale_md: Optional[str] = None
