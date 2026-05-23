@@ -85,7 +85,7 @@ async def run_refresh(
     odds_summary = await ingest_outright_winner(poly_collector)
     log.info("ingest.polymarket", **odds_summary)
 
-    snap = await generate_simulated_forecast(trigger=trigger, n_iterations=2_000)
+    snap, sim_result = await generate_simulated_forecast(trigger=trigger, n_iterations=2_000)
     log.info("forecast.tournament", snapshot_id=snap.id, model_version=snap.model_version)
 
     per_match_summary = await generate_match_forecasts(snapshot_id=snap.id, as_of=as_of)
