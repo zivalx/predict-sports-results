@@ -89,3 +89,76 @@ async def test_run_refresh_end_to_end(fake_football_client, fake_poly_collector)
     out_dir = get_settings().digest_output_dir
     assert (out_dir / "2026-06-05.md").exists()
     assert get_settings().whatsapp_pickup_path.exists()
+
+
+GROUP_LABELS = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L"]
+
+
+def _build_full_wc_fixtures():
+    """48-team WC schedule from football-data-org-shaped DTOs.
+
+    Country codes follow the {label}{i} pattern so simulated_forecast can detect
+    the 12 groups via country_code prefix.
+    """
+    from datetime import datetime, timezone
+    from worldcap.ingest.sports_data import TeamDTO, FixtureDTO
+
+    teams = []
+    for gi, label in enumerate(GROUP_LABELS):
+        for ti in range(4):
+            teams.append(TeamDTO(
+                external_id=gi * 4 + ti + 1000,
+                name=f"Team-{label}{ti+1}",
+                country_code=f"{label}{ti+1}",
+            ))
+    # One fixture per group (we don't need all 72) — enough that the fixtures ingest runs
+    fixtures = []
+    for gi, label in enumerate(GROUP_LABELS):
+        fixtures.append(FixtureDTO(
+            external_id=10_000 + gi,
+            stage="group",
+            group_label=label,
+            kickoff_utc=datetime(2026, 6, 11 + gi % 10, 20, 0, tzinfo=timezone.utc),
+            status="SCHEDULED",
+            home_external_id=gi * 4 + 1000,
+            away_external_id=gi * 4 + 1001,
+            home_score=None,
+            away_score=None,
+        ))
+    return teams, fixtures
+
+
+@pytest.fixture
+def fake_full_wc_football_client():
+    from unittest.mock import AsyncMock
+    teams, fixtures = _build_full_wc_fixtures()
+    client = AsyncMock()
+    client.get_teams.return_value = teams
+    client.get_fixtures.return_value = fixtures
+    return client
+
+
+@pytest.mark.asyncio
+async def test_run_refresh_full_wc_seeds_tournament_forecasts(fake_full_wc_football_client, fake_poly_collector):
+    await init_db()
+    await seed()
+
+    as_of = datetime(2026, 6, 5, tzinfo=timezone.utc)
+    snap = await run_refresh(
+        trigger="manual",
+        football_client=fake_full_wc_football_client,
+        poly_collector=fake_poly_collector,
+        as_of=as_of,
+    )
+
+    async with get_session() as session:
+        teams = (await session.execute(select(Team))).scalars().all()
+        tournament_forecasts = (await session.execute(
+            select(TournamentForecast).where(TournamentForecast.snapshot_id == snap.id)
+        )).scalars().all()
+    assert len(teams) == 48
+    assert len(tournament_forecasts) == 48
+    total = sum(f.p_champion for f in tournament_forecasts)
+    assert total == pytest.approx(1.0, abs=0.005)  # tiny floating-point tolerance
+    # At least one team has positive p_semi
+    assert any(f.p_semi > 0.0 for f in tournament_forecasts)
