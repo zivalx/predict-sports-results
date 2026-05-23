@@ -8,6 +8,18 @@
 | {{ loop.index }} | {{ row.team_name }} | {{ '%.0f' % (row.p_champion * 100) }}% | {{ '%.0f' % (row.poly_p_champion * 100) }}% | {{ '%+.0fpp' % (row.edge_vs_poly * 100) }} |
 {%- endfor %}
 
+## Golden Boot race
+
+{% if top_scorers %}
+| # | Player | Team | P(top scorer) | Polymarket | Edge | g/90 |
+|---|--------|------|---------------|------------|------|------|
+{%- for row in top_scorers %}
+| {{ loop.index }} | {{ row.player_name }} | {{ row.team_name }} | {{ '%.1f' % (row.p_golden_boot * 100) }}% | {%- if row.poly_p_top_scorer is not none -%} {{ '%.1f' % (row.poly_p_top_scorer * 100) }}% | {{ '%+.1fpp' % (row.edge_vs_poly * 100) }} {%- else -%} — | — {%- endif %} | {{ '%.2f' % row.goals_per_90 }} |
+{%- endfor %}
+{%- else %}
+_No watchlist players seeded yet._
+{%- endif %}
+
 ## Per-match forecasts
 
 {% if per_match %}
