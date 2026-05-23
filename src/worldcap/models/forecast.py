@@ -12,6 +12,7 @@ class ForecastSnapshot(SQLModel, table=True):
     snapshot_date: datetime
     snapshot_trigger: str  # daily | post_match | manual
     poly_odds_hash: str
+    model_state_hash: Optional[str] = None
     model_version: str = "naive-poly-only-v0"
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 

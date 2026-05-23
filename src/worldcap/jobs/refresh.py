@@ -10,7 +10,7 @@ from worldcap.ingest.polymarket import ingest_outright_winner
 from worldcap.ingest.results import ingest_completed_results
 from worldcap.log import get_logger
 from worldcap.model.elo_updates import apply_elo_updates
-from worldcap.model.naive import generate_naive_forecast
+from worldcap.model.simulated_forecast import generate_simulated_forecast
 from worldcap.model.per_match import generate_match_forecasts
 from worldcap.model.ratings import load_seed_ratings
 from worldcap.models import Competition
@@ -56,8 +56,11 @@ async def run_refresh(
     odds_summary = await ingest_outright_winner(poly_collector)
     log.info("ingest.polymarket", **odds_summary)
 
-    snap = await generate_naive_forecast(trigger=trigger)
-    log.info("forecast.naive", snapshot_id=snap.id, model_version=snap.model_version)
+    snap = await generate_simulated_forecast(
+        trigger=trigger,
+        n_iterations=2_000,  # production target is 10k; keep 2k for refresh speed
+    )
+    log.info("forecast.tournament", snapshot_id=snap.id, model_version=snap.model_version)
 
     per_match_summary = await generate_match_forecasts(snapshot_id=snap.id, as_of=as_of)
     log.info("forecast.per_match", snapshot_id=snap.id, **per_match_summary)

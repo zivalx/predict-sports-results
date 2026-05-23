@@ -42,3 +42,24 @@ The post-match scheduler runs every 5 minutes alongside the daily cron job.
 `data/fifa_ratings_seed.csv` ships with approximate Elo ratings (mean 1500, top
 teams ~1900) keyed by country TLA. Edit the CSV directly to tune priors. Teams
 present in the DB but missing from the CSV default to 1500.
+
+## Plan 3: Monte Carlo simulator
+
+The tournament outlook in the daily digest is now produced by a Monte Carlo
+simulator that runs the rest of the World Cup 2,000 times every refresh
+(target: 10,000 in production). For each iteration it:
+
+1. Plays all 12 groups using the Plan 2 Elo-based match model
+2. Resolves group standings via FIFA tiebreakers (points → GD → goals for → lots)
+3. Seeds the 32-team knockout bracket from group standings + 8 best 3rd-placed
+4. Plays R32 → R16 → QF → SF → F
+5. Records the champion, runner-up, semifinalists, and group winners
+
+Aggregated across iterations, this gives per-team probabilities for winning
+the cup, reaching the semifinal, topping the group, etc. The digest's
+"Tournament outlook" table now shows these model-derived numbers; the `Edge`
+column shows where our model diverges from Polymarket's outright winner market.
+
+The simulator is deterministic under a seed — set `WORLDCAP_SIMULATOR_SEED` if
+you need reproducible runs (not currently wired through; pass `seed=` directly
+to `generate_simulated_forecast` for now).

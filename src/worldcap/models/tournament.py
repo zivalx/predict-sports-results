@@ -35,6 +35,18 @@ class Team(SQLModel, table=True):
     country_code: Optional[str] = None
     fifa_rank: Optional[int] = None
 
+    def __hash__(self) -> int:
+        """Hash by ID if available, otherwise by external_id."""
+        return hash(self.id if self.id is not None else self.external_id)
+
+    def __eq__(self, other) -> bool:
+        """Equality by ID if available, otherwise by external_id."""
+        if not isinstance(other, Team):
+            return False
+        if self.id is not None and other.id is not None:
+            return self.id == other.id
+        return self.external_id == other.external_id
+
 
 class Match(SQLModel, table=True):
     __tablename__ = "match"
@@ -50,3 +62,4 @@ class Match(SQLModel, table=True):
     status: str = "SCHEDULED"  # SCHEDULED | LIVE | FT | POSTPONED
     home_score: Optional[int] = None
     away_score: Optional[int] = None
+    bracket_slot: Optional[str] = None  # e.g. "R32-1", "QF-3", "F"; None for group stage
