@@ -19,6 +19,14 @@ def _isolated_env(tmp_path, monkeypatch):
     monkeypatch.setenv("WHATSAPP_PICKUP_PATH", str(output_dir / "latest.md"))
     monkeypatch.setenv("FOOTBALL_DATA_API_KEY", "test-key")
     monkeypatch.setenv("LOG_LEVEL", "WARNING")
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "")
+    monkeypatch.setenv("GNEWS_API_KEY", "")
+    monkeypatch.setenv("REDDIT_CLIENT_ID", "")
+    monkeypatch.setenv("REDDIT_CLIENT_SECRET", "")
+    monkeypatch.setenv("REDDIT_USER_AGENT", "test/0.1")
+    monkeypatch.setenv("RATIONALE_TOKEN_BUDGET", "100000")
+    monkeypatch.setenv("SENTIMENT_MODEL", "claude-haiku-4-5")
+    monkeypatch.setenv("RATIONALE_MODEL", "claude-sonnet-4-5")
     # Reset caches so the new env vars take effect
     from worldcap.config import get_settings
     from worldcap.db import reset_engine_cache
