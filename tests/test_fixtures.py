@@ -4,8 +4,7 @@ from unittest.mock import AsyncMock
 import pytest
 from sqlmodel import select
 
-from worldcap.config import get_settings
-from worldcap.db import get_session, init_db, reset_engine_cache
+from worldcap.db import get_session, init_db
 from worldcap.ingest.fixtures import ingest_teams_and_fixtures
 from worldcap.ingest.sports_data import FixtureDTO, TeamDTO
 from worldcap.models import Match, Team
@@ -37,8 +36,6 @@ def fake_client():
 
 @pytest.mark.asyncio
 async def test_ingest_creates_rows(fake_client):
-    get_settings.cache_clear()
-    reset_engine_cache()
     await init_db()
     await seed()
 
@@ -56,8 +53,6 @@ async def test_ingest_creates_rows(fake_client):
 
 @pytest.mark.asyncio
 async def test_ingest_is_idempotent(fake_client):
-    get_settings.cache_clear()
-    reset_engine_cache()
     await init_db()
     await seed()
 

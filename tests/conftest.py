@@ -19,6 +19,11 @@ def _isolated_env(tmp_path, monkeypatch):
     monkeypatch.setenv("WHATSAPP_PICKUP_PATH", str(output_dir / "latest.md"))
     monkeypatch.setenv("FOOTBALL_DATA_API_KEY", "test-key")
     monkeypatch.setenv("LOG_LEVEL", "WARNING")
+    # Reset caches so the new env vars take effect
+    from worldcap.config import get_settings
+    from worldcap.db import reset_engine_cache
+    get_settings.cache_clear()
+    reset_engine_cache()
     yield
 
 

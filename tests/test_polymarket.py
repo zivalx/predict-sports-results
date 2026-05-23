@@ -4,8 +4,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from sqlmodel import select
 
-from worldcap.config import get_settings
-from worldcap.db import get_session, init_db, reset_engine_cache
+from worldcap.db import get_session, init_db
 from worldcap.ingest.polymarket import ingest_outright_winner
 from worldcap.models import OddsSnapshot, Team
 from scripts.seed_competition import seed
@@ -29,8 +28,6 @@ def fake_poly_collector():
 
 @pytest.mark.asyncio
 async def test_ingest_outright_persists_snapshot(fake_poly_collector):
-    get_settings.cache_clear()
-    reset_engine_cache()
     await init_db()
     await seed()
 
@@ -58,8 +55,6 @@ async def test_ingest_outright_handles_no_match(fake_poly_collector):
     fake_poly_collector.fetch_markets.return_value.status = "success"
     fake_poly_collector.fetch_markets.return_value.markets = []
 
-    get_settings.cache_clear()
-    reset_engine_cache()
     await init_db()
     await seed()
 

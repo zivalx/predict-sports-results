@@ -8,8 +8,26 @@
 | {{ loop.index }} | {{ row.team_name }} | {{ '%.0f' % (row.p_champion * 100) }}% | {{ '%.0f' % (row.poly_p_champion * 100) }}% | {{ '%+.0fpp' % (row.edge_vs_poly * 100) }} |
 {%- endfor %}
 
+## Per-match forecasts
+
+{% if per_match %}
+{%- for m in per_match %}
+### {{ m.home_name }} vs {{ m.away_name }} · {{ m.kickoff_utc.strftime('%Y-%m-%d %H:%M UTC') }} · {{ 'Group ' + m.group_label if m.group_label else m.stage }}
+- **Our forecast:** {{ m.home_name }} {{ '%.0f' % (m.p_home * 100) }}% · Draw {{ '%.0f' % (m.p_draw * 100) }}% · {{ m.away_name }} {{ '%.0f' % (m.p_away * 100) }}%
+{%- if m.p_home_poly is not none %}
+- **Polymarket:** {{ m.home_name }} {{ '%.0f' % (m.p_home_poly * 100) }}% · Draw {{ '%.0f' % (m.p_draw_poly * 100) }}% · {{ m.away_name }} {{ '%.0f' % (m.p_away_poly * 100) }}%
+- **Edge:** {{ '%+.0fpp' % (m.edge_vs_poly * 100) }} on {{ m.home_name }}
+{%- else %}
+- **Polymarket:** —
+- **Edge:** —
+{%- endif %}
+{% endfor %}
+{%- else %}
+_No fixture-known matches within the horizon._
+{%- endif %}
+
 ## Next matches
 
 {%- for m in next_matches %}
-- {{ m.home_name }} vs {{ m.away_name }} · {{ m.kickoff_utc.strftime('%Y-%m-%d %H:%M UTC') }} · Group {{ m.group_label }}
+- {{ m.home_name }} vs {{ m.away_name }} · {{ m.kickoff_utc.strftime('%Y-%m-%d %H:%M UTC') }} · {{ 'Group ' + m.group_label if m.group_label else 'Knockout' }}
 {%- endfor %}

@@ -3,8 +3,7 @@ from datetime import datetime, timezone
 import pytest
 from sqlmodel import select
 
-from worldcap.config import get_settings
-from worldcap.db import get_session, init_db, reset_engine_cache
+from worldcap.db import get_session, init_db
 from worldcap.model.naive import generate_naive_forecast
 from worldcap.models import ForecastSnapshot, OddsSnapshot, Team, TournamentForecast
 from worldcap.models.tournament import Competition
@@ -18,8 +17,6 @@ async def _team_by_name(name: str) -> Team:
 
 @pytest.mark.asyncio
 async def test_naive_forecast_uses_latest_outright_snapshot():
-    get_settings.cache_clear()
-    reset_engine_cache()
     await init_db()
     await seed()
 
@@ -59,8 +56,6 @@ async def test_naive_forecast_uses_latest_outright_snapshot():
 
 @pytest.mark.asyncio
 async def test_naive_forecast_skips_unknown_team_names():
-    get_settings.cache_clear()
-    reset_engine_cache()
     await init_db()
     await seed()
 

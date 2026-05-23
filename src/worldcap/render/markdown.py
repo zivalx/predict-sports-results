@@ -7,7 +7,7 @@ from sqlmodel import select
 
 from worldcap.db import get_session
 from worldcap.models import Team, TournamentForecast
-from worldcap.models.forecast import ForecastSnapshot
+from worldcap.models.forecast import ForecastSnapshot, MatchForecast
 from worldcap.models.tournament import Competition, Match
 
 
@@ -23,6 +23,22 @@ class OutlookRow:
 
 
 @dataclass
+class MatchForecastRow:
+    home_name: str
+    away_name: str
+    kickoff_utc: datetime
+    group_label: str | None
+    stage: str
+    p_home: float
+    p_draw: float
+    p_away: float
+    p_home_poly: float | None
+    p_draw_poly: float | None
+    p_away_poly: float | None
+    edge_vs_poly: float
+
+
+@dataclass
 class NextMatchRow:
     home_name: str
     away_name: str
@@ -31,16 +47,19 @@ class NextMatchRow:
 
 
 def _phase_label(as_of: datetime, start_date: datetime, end_date: datetime) -> str:
-    # Normalize to UTC for comparison if as_of is timezone-aware
-    if as_of.tzinfo is not None:
-        as_of_utc = as_of.replace(tzinfo=None) if as_of.tzinfo == timezone.utc else as_of.astimezone(timezone.utc).replace(tzinfo=None)
-    else:
-        as_of_utc = as_of
+    # Normalise comparison to UTC; SQLite strips tzinfo on round-trip for DateTime columns.
+    def _to_naive_utc(dt: datetime) -> datetime:
+        if dt.tzinfo is None:
+            return dt
+        return dt.astimezone(timezone.utc).replace(tzinfo=None)
 
-    if as_of_utc < start_date:
-        days = (start_date - as_of_utc).days
+    a = _to_naive_utc(as_of)
+    s = _to_naive_utc(start_date)
+    e = _to_naive_utc(end_date)
+    if a < s:
+        days = (s - a).days
         return f"T−{days} days · pre-tournament"
-    if as_of_utc <= end_date:
+    if a <= e:
         return "in-tournament"
     return "post-tournament"
 
@@ -73,6 +92,33 @@ async def render_digest_markdown(snapshot_id: int, as_of: datetime, top_n: int =
             for f in forecasts
         ]
 
+        # Per-match forecasts (joined to Match for kickoff + group_label + teams)
+        per_match_rows = (await session.execute(
+            select(MatchForecast, Match)
+            .join(Match, MatchForecast.match_id == Match.id)
+            .where(MatchForecast.snapshot_id == snapshot_id)
+            .order_by(Match.kickoff_utc.asc())
+        )).all()
+        per_match: list[MatchForecastRow] = []
+        for mf, m in per_match_rows:
+            if m.home_team_id is None or m.away_team_id is None:
+                continue
+            per_match.append(MatchForecastRow(
+                home_name=teams_by_id[m.home_team_id].name,
+                away_name=teams_by_id[m.away_team_id].name,
+                kickoff_utc=m.kickoff_utc,
+                group_label=m.group_label,
+                stage=m.stage,
+                p_home=mf.p_home,
+                p_draw=mf.p_draw,
+                p_away=mf.p_away,
+                p_home_poly=mf.p_home_poly,
+                p_draw_poly=mf.p_draw_poly,
+                p_away_poly=mf.p_away_poly,
+                edge_vs_poly=mf.edge_vs_poly,
+            ))
+
+        # Next 3 upcoming fixtures (still useful for "what's next" when as_of is far before kickoff)
         upcoming = (await session.execute(
             select(Match)
             .where(Match.competition_id == comp.id)
@@ -103,5 +149,6 @@ async def render_digest_markdown(snapshot_id: int, as_of: datetime, top_n: int =
         as_of=as_of,
         phase_label=_phase_label(as_of, comp.start_date, comp.end_date),
         outlook=outlook,
+        per_match=per_match,
         next_matches=next_matches,
     )
