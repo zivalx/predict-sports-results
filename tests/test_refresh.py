@@ -162,3 +162,80 @@ async def test_run_refresh_full_wc_seeds_tournament_forecasts(fake_full_wc_footb
     assert total == pytest.approx(1.0, abs=0.005)  # tiny floating-point tolerance
     # At least one team has positive p_semi
     assert any(f.p_semi > 0.0 for f in tournament_forecasts)
+
+
+@pytest.fixture
+def fake_gnews_collector():
+    from unittest.mock import AsyncMock, MagicMock
+
+    collector = MagicMock()
+    async def fetch(spec):
+        q = spec.query
+        a = MagicMock()
+        a.url = f"https://news.example/{q.replace(' ', '-')}-1"
+        a.title = f"{q} headline"
+        a.description = f"Story about {q}"
+        a.published_at = datetime(2026, 5, 23, 10, 0, tzinfo=timezone.utc)
+        return MagicMock(status="success", articles=[a])
+    collector.fetch = AsyncMock(side_effect=fetch)
+    return collector
+
+
+@pytest.fixture
+def fake_reddit_collector():
+    from unittest.mock import AsyncMock, MagicMock
+
+    collector = MagicMock()
+    async def fetch(spec):
+        post = MagicMock()
+        post.id = "abc"
+        post.title = "Team A1 looks strong"
+        post.body = "great form"
+        post.text = "Team A1 looks strong great form"
+        post.author = "user"
+        post.score = 100
+        post.url = "https://reddit.com/r/soccer/comments/abc/"
+        post.created_at = datetime(2026, 5, 23, 11, 0, tzinfo=timezone.utc)
+        return MagicMock(status="success", posts=[post])
+    collector.fetch = AsyncMock(side_effect=fetch)
+    return collector
+
+
+@pytest.mark.asyncio
+async def test_run_refresh_full_wc_writes_rationales(
+    fake_full_wc_football_client,
+    fake_poly_collector,
+    fake_gnews_collector,
+    fake_reddit_collector,
+):
+    from worldcap.enrich.claude_client import FakeClaudeClient
+    from worldcap.models import MatchForecast
+
+    await init_db()
+    await seed()
+
+    claude = FakeClaudeClient(
+        canned_completion="Strong analytical paragraph about the upcoming fixture.",
+        canned_score=0.2,
+        token_budget=1_000_000,
+    )
+
+    as_of = datetime(2026, 6, 5, tzinfo=timezone.utc)
+    snap = await run_refresh(
+        trigger="manual",
+        football_client=fake_full_wc_football_client,
+        poly_collector=fake_poly_collector,
+        gnews_collector=fake_gnews_collector,
+        reddit_collector=fake_reddit_collector,
+        claude_client=claude,
+        as_of=as_of,
+    )
+
+    async with get_session() as session:
+        forecasts = (await session.execute(
+            select(MatchForecast).where(MatchForecast.snapshot_id == snap.id)
+        )).scalars().all()
+    # At least one rationale should be written.
+    rationales = [f for f in forecasts if f.rationale_md]
+    assert len(rationales) >= 1
+    assert "analytical paragraph" in rationales[0].rationale_md

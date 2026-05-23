@@ -14,6 +14,20 @@ class Settings(BaseSettings):
     daily_refresh_cron: str = "0 9 * * *"
     log_level: str = "INFO"
 
+    # Claude SDK
+    anthropic_api_key: str = ""
+    sentiment_model: str = "claude-haiku-4-5"
+    rationale_model: str = "claude-sonnet-4-5"
+    rationale_token_budget: int = 100_000
+
+    # News
+    gnews_api_key: str = ""
+
+    # Reddit
+    reddit_client_id: str = ""
+    reddit_client_secret: str = ""
+    reddit_user_agent: str = "worldcap/0.1"
+
     competition_code: str = "WC"  # football-data.org API code
     db_competition_code: str = "WC2026"  # internal/seed code (distinct from competition_code)
 

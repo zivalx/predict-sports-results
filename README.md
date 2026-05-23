@@ -63,3 +63,45 @@ column shows where our model diverges from Polymarket's outright winner market.
 The simulator is deterministic under a seed — set `WORLDCAP_SIMULATOR_SEED` if
 you need reproducible runs (not currently wired through; pass `seed=` directly
 to `generate_simulated_forecast` for now).
+
+## Plan 4: News, sentiment, and Claude rationales
+
+The daily refresh now produces a 2-3 sentence written rationale for each
+fixture-known match, persisted as `MatchForecast.rationale_md` and surfaced in
+the digest below each per-match card.
+
+The pipeline added four new stages between Elo updates and forecast generation:
+
+1. **News ingest** (GNews via the `connectors` library) — per-team queries write
+   `NewsItem` rows, idempotent on URL.
+2. **Reddit ingest** — pulls recent posts from `r/soccer`, `r/worldcup`,
+   `r/footballtactics`, tags each post to a team when a team name appears in the
+   text.
+3. **Sentiment scoring** — Claude (cheap model, `claude-haiku-4-5` by default)
+   scores each new post + news item; results land in `SentimentScore` rows.
+4. **Team rollups** — confidence-weighted mean of recent post/news scores per
+   team, written as a `target_type="team"` `SentimentScore` row.
+
+After per-match forecasts are written, a final stage loops them and calls Claude
+(smart model, `claude-sonnet-4-5` by default) with a structured prompt
+containing team form, Elo ratings, our 3-way probability, Polymarket prob,
+edge, recent headlines, and the sentiment summary. A per-refresh token budget
+(`RATIONALE_TOKEN_BUDGET`, default 100,000) caps spend; on overrun the loop
+logs and stops cleanly.
+
+### Required env vars
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `ANTHROPIC_API_KEY` | — | Claude SDK key |
+| `GNEWS_API_KEY` | — | GNews API key |
+| `REDDIT_CLIENT_ID` | — | Reddit API client ID |
+| `REDDIT_CLIENT_SECRET` | — | Reddit API client secret |
+| `REDDIT_USER_AGENT` | `worldcap/0.1` | Reddit API user agent |
+| `SENTIMENT_MODEL` | `claude-haiku-4-5` | Model used for batch sentiment |
+| `RATIONALE_MODEL` | `claude-sonnet-4-5` | Model used for per-match rationale |
+| `RATIONALE_TOKEN_BUDGET` | `100000` | Per-refresh cap on rationale tokens |
+
+When `ANTHROPIC_API_KEY` is empty, sentiment scoring and rationale generation
+are **skipped with a warning** (graceful degradation); the rest of the pipeline
+still runs end-to-end.
