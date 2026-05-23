@@ -105,3 +105,27 @@ logs and stops cleanly.
 When `ANTHROPIC_API_KEY` is empty, sentiment scoring and rationale generation
 are **skipped with a warning** (graceful degradation); the rest of the pipeline
 still runs end-to-end.
+
+## Plan 5: Top-scorer (Golden Boot) model
+
+The simulator now also produces per-player Golden Boot probabilities. For each
+of the 2,000 simulated tournaments (per refresh), every watchlist player's
+tournament-total goals are sampled from
+`Poisson(goals_per_90 × matches_played × start_prob)`, where
+`matches_played` comes from how far their team advanced in that specific
+iteration and `start_prob` defaults to 0.8 (refining lineups is a v1 concern).
+The player with the highest sampled total wins the iteration; aggregated across
+iterations, this gives `p_golden_boot` per player.
+
+### Watchlist
+
+`data/players_seed.csv` ships with approximate `goals_per_90` rates for ~40
+candidate scorers, keyed by TLA. Edit it to tune priors or add players. Teams
+whose country code isn't present in the seed have no watchlist entries (so
+non-watchlist players are implicitly ignored — a known v0 simplification).
+
+### Output
+
+The digest now includes a "Golden Boot race" section ranking the top 10
+candidates with our probability, Polymarket's top-scorer market (when
+available), and the edge.
