@@ -7,13 +7,14 @@ Given 12 groups (each a list of 4 team handles) + a rating lookup, this:
     - seed 32-team bracket: alternate 1st/2nd from each group + 8 best 3rds
     - simulate knockout
     - tally champion / runner-up / semifinalist / top-of-group counts
+    - track per-team rounds reached to compute expected matches played
 
 Returns a SimulationResult that exposes `p_champion(team)`, `p_runner_up(team)`,
-`p_semi(team)`, `p_top_group(team)`.
+`p_semi(team)`, `p_top_group(team)`, `expected_matches_played(team)`.
 """
 
 import random
-from collections import Counter
+from collections import Counter, defaultdict
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -28,6 +29,24 @@ from worldcap.model.simulator.group_stage import simulate_group
 # place from a stronger group is treated as equivalent to a 3rd from a weaker one.
 # A future refinement could re-aggregate points/GD/GF.
 
+# Per-team matches played by round reached.
+# "group" = didn't reach R32 (3 matches)
+# "R32" = lost in R32 (4 matches: 3 group + 1 R32)
+# "R16" = lost in R16 (5 matches)
+# ... etc ...
+# "F" = reached final, won or lost (8 matches: 3 group + R32 + R16 + QF + SF + F)
+# "champion" = won final (8 matches)
+_MATCHES_PER_ROUND = {
+    "group": 3,
+    "R32": 4,
+    "R16": 5,
+    "QF": 6,
+    "SF": 7,
+    "F": 8,
+    "champion": 8,
+}
+
+
 @dataclass
 class SimulationResult:
     n_iterations: int
@@ -35,6 +54,8 @@ class SimulationResult:
     _runner_up_counts: Counter = field(default_factory=Counter)
     _semi_counts: Counter = field(default_factory=Counter)
     _top_group_counts: Counter = field(default_factory=Counter)
+    # Sum of "matches played in this iteration" per team across iterations.
+    _matches_played_total: dict = field(default_factory=lambda: defaultdict(int))
 
     def p_champion(self, team: Any) -> float:
         return self._champion_counts.get(team, 0) / self.n_iterations
@@ -47,6 +68,10 @@ class SimulationResult:
 
     def p_top_group(self, team: Any) -> float:
         return self._top_group_counts.get(team, 0) / self.n_iterations
+
+    def expected_matches_played(self, team: Any) -> float:
+        """Mean tournament matches played across iterations."""
+        return self._matches_played_total.get(team, 0) / self.n_iterations
 
 
 def _pick_best_third_placed(third_placed_per_iter: list[Any], k: int = 8) -> list[Any]:
@@ -95,6 +120,8 @@ def simulate_tournament(
     master_rng = random.Random(seed)
     result = SimulationResult(n_iterations=n_iterations)
 
+    all_teams = [t for g in groups for t in g]
+
     for _ in range(n_iterations):
         # Fresh per-iteration rng deterministically derived from master
         iter_rng = random.Random(master_rng.random())
@@ -115,5 +142,18 @@ def simulate_tournament(
             result._semi_counts[t] += 1
         for standings in group_standings:
             result._top_group_counts[standings[0]] += 1
+
+        # Per-team rounds → matches played
+        rounds_reached = ko["rounds_reached"]
+        seeded_set = set(seeded)
+        for t in all_teams:
+            if t in rounds_reached:
+                round_label = rounds_reached[t]
+            elif t in seeded_set:
+                # Shouldn't happen — rounds_reached has all seeded teams
+                round_label = "R32"
+            else:
+                round_label = "group"
+            result._matches_played_total[t] += _MATCHES_PER_ROUND[round_label]
 
     return result
