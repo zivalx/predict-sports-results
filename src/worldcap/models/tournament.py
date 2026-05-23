@@ -50,3 +50,4 @@ class Match(SQLModel, table=True):
     status: str = "SCHEDULED"  # SCHEDULED | LIVE | FT | POSTPONED
     home_score: Optional[int] = None
     away_score: Optional[int] = None
+    bracket_slot: Optional[str] = None  # e.g. "R32-1", "QF-3", "F"; None for group stage
