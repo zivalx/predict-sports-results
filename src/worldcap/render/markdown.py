@@ -36,6 +36,7 @@ class MatchForecastRow:
     p_draw_poly: float | None
     p_away_poly: float | None
     edge_vs_poly: float
+    rationale_md: str | None
 
 
 @dataclass
@@ -116,6 +117,7 @@ async def render_digest_markdown(snapshot_id: int, as_of: datetime, top_n: int =
                 p_draw_poly=mf.p_draw_poly,
                 p_away_poly=mf.p_away_poly,
                 edge_vs_poly=mf.edge_vs_poly,
+                rationale_md=mf.rationale_md,
             ))
 
         # Next 3 upcoming fixtures (still useful for "what's next" when as_of is far before kickoff)

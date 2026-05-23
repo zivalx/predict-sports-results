@@ -5,16 +5,22 @@ from sqlmodel import select
 
 from worldcap.config import get_settings
 from worldcap.db import get_session
+from worldcap.enrich.aggregate import aggregate_team_sentiment
+from worldcap.enrich.claude_client import TokenBudgetExceeded
+from worldcap.enrich.sentiment import score_unscored_items
 from worldcap.ingest.fixtures import ingest_teams_and_fixtures
+from worldcap.ingest.news import ingest_news_for_teams
 from worldcap.ingest.polymarket import ingest_outright_winner
+from worldcap.ingest.reddit import ingest_reddit_for_competition
 from worldcap.ingest.results import ingest_completed_results
 from worldcap.log import get_logger
 from worldcap.model.elo_updates import apply_elo_updates
-from worldcap.model.simulated_forecast import generate_simulated_forecast
 from worldcap.model.per_match import generate_match_forecasts
 from worldcap.model.ratings import load_seed_ratings
-from worldcap.models import Competition
+from worldcap.model.simulated_forecast import generate_simulated_forecast
+from worldcap.models import Competition, MatchForecast
 from worldcap.models.forecast import ForecastSnapshot
+from worldcap.rationale.match import generate_rationale_for_match
 from worldcap.render.markdown import render_digest_markdown
 from worldcap.render.writer import write_digest
 
@@ -26,11 +32,14 @@ async def run_refresh(
     trigger: str,
     football_client,
     poly_collector,
+    *,
+    gnews_collector=None,
+    reddit_collector=None,
+    claude_client=None,
     as_of: Optional[datetime] = None,
     competition_id: Optional[int] = None,
 ) -> ForecastSnapshot:
-    """End-to-end pipeline: ingest -> elo update -> forecasts -> render -> write."""
-
+    """End-to-end pipeline."""
     as_of = as_of or datetime.now(timezone.utc)
     settings = get_settings()
 
@@ -53,17 +62,52 @@ async def run_refresh(
     elo_summary = await apply_elo_updates(results_summary["match_ids"])
     log.info("elo.updates", **elo_summary)
 
+    if gnews_collector is not None:
+        news_summary = await ingest_news_for_teams(gnews_collector)
+        log.info("ingest.news", **news_summary)
+    else:
+        log.warning("ingest.news.skipped_no_collector")
+
+    if reddit_collector is not None:
+        reddit_summary = await ingest_reddit_for_competition(reddit_collector)
+        log.info("ingest.reddit", **reddit_summary)
+    else:
+        log.warning("ingest.reddit.skipped_no_collector")
+
+    if claude_client is not None and not claude_client.is_disabled():
+        sentiment_summary = await score_unscored_items(claude_client, limit=50)
+        log.info("sentiment.score", **sentiment_summary)
+        agg_summary = await aggregate_team_sentiment(as_of=as_of, lookback_hours=72)
+        log.info("sentiment.aggregate", **agg_summary)
+    else:
+        log.warning("sentiment.skipped_no_or_disabled_claude")
+
     odds_summary = await ingest_outright_winner(poly_collector)
     log.info("ingest.polymarket", **odds_summary)
 
-    snap = await generate_simulated_forecast(
-        trigger=trigger,
-        n_iterations=2_000,  # production target is 10k; keep 2k for refresh speed
-    )
+    snap = await generate_simulated_forecast(trigger=trigger, n_iterations=2_000)
     log.info("forecast.tournament", snapshot_id=snap.id, model_version=snap.model_version)
 
     per_match_summary = await generate_match_forecasts(snapshot_id=snap.id, as_of=as_of)
     log.info("forecast.per_match", snapshot_id=snap.id, **per_match_summary)
+
+    if claude_client is not None and not claude_client.is_disabled():
+        async with get_session() as session:
+            match_forecasts = (await session.execute(
+                select(MatchForecast).where(MatchForecast.snapshot_id == snap.id)
+            )).scalars().all()
+        rationale_count = 0
+        for mf in match_forecasts:
+            try:
+                result = await generate_rationale_for_match(claude_client, match_forecast_id=mf.id)
+                if result.get("rationale_written"):
+                    rationale_count += 1
+            except TokenBudgetExceeded:
+                log.warning("rationale.budget_exceeded", written_before_stop=rationale_count)
+                break
+        log.info("rationale.batch", rationales_written=rationale_count)
+    else:
+        log.warning("rationale.skipped_no_or_disabled_claude")
 
     text = await render_digest_markdown(snapshot_id=snap.id, as_of=as_of)
     path = await write_digest(text, date_str=as_of.strftime("%Y-%m-%d"))
