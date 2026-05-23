@@ -10,7 +10,8 @@ from worldcap.enrich.claude_client import TokenBudgetExceeded
 from worldcap.enrich.sentiment import score_unscored_items
 from worldcap.ingest.fixtures import ingest_teams_and_fixtures
 from worldcap.ingest.news import ingest_news_for_teams
-from worldcap.ingest.polymarket import ingest_outright_winner
+from worldcap.ingest.players import load_seed_players
+from worldcap.ingest.polymarket import ingest_outright_winner, ingest_top_scorer_market
 from worldcap.ingest.reddit import ingest_reddit_for_competition
 from worldcap.ingest.results import ingest_completed_results
 from worldcap.log import get_logger
@@ -18,6 +19,7 @@ from worldcap.model.elo_updates import apply_elo_updates
 from worldcap.model.per_match import generate_match_forecasts
 from worldcap.model.ratings import load_seed_ratings
 from worldcap.model.simulated_forecast import generate_simulated_forecast
+from worldcap.model.top_scorer_forecast import generate_top_scorer_forecast
 from worldcap.models import Competition, MatchForecast
 from worldcap.models.forecast import ForecastSnapshot
 from worldcap.rationale.match import generate_rationale_for_match
@@ -59,6 +61,9 @@ async def run_refresh(
     ratings_summary = await load_seed_ratings()
     log.info("ratings.seed", **ratings_summary)
 
+    players_summary = await load_seed_players()
+    log.info("players.seed", **players_summary)
+
     elo_summary = await apply_elo_updates(results_summary["match_ids"])
     log.info("elo.updates", **elo_summary)
 
@@ -85,11 +90,20 @@ async def run_refresh(
     odds_summary = await ingest_outright_winner(poly_collector)
     log.info("ingest.polymarket", **odds_summary)
 
+    top_scorer_market_summary = await ingest_top_scorer_market(poly_collector)
+    log.info("ingest.polymarket.top_scorer", **top_scorer_market_summary)
+
     snap, sim_result = await generate_simulated_forecast(trigger=trigger, n_iterations=2_000)
     log.info("forecast.tournament", snapshot_id=snap.id, model_version=snap.model_version)
 
     per_match_summary = await generate_match_forecasts(snapshot_id=snap.id, as_of=as_of)
     log.info("forecast.per_match", snapshot_id=snap.id, **per_match_summary)
+
+    if sim_result is not None:
+        ts_summary = await generate_top_scorer_forecast(snap.id, sim_result)
+        log.info("forecast.top_scorer", **ts_summary)
+    else:
+        log.warning("forecast.top_scorer.skipped_no_sim_result")
 
     if claude_client is not None and not claude_client.is_disabled():
         async with get_session() as session:
