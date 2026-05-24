@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{% block title %}worldcap{% endblock %}</title>
+  <title>{% block title %}World Cup 2026{% endblock %}</title>
   <link rel="stylesheet" href="/static/dashboard.css">
   <script src="https://unpkg.com/htmx.org@1.9.12" defer></script>
 </head>
@@ -12,10 +12,11 @@
   <header class="site-header">
     <nav class="nav-inner">
       <a href="/" class="nav-brand">
-        <span class="brand-mark">WC</span>worldcap
+        <span class="brand-mark">WC</span>World Cup 2026
       </a>
       <ul class="nav-links">
         <li><a href="/">Home</a></li>
+        <li><a href="/results">Results</a></li>
         <li><a href="/tournament">Tournament</a></li>
         <li><a href="/golden-boot">Golden Boot</a></li>
       </ul>
@@ -27,7 +28,7 @@
   </main>
 
   <footer class="site-footer">
-    <span>worldcap &middot; World Cup 2026 forecast feed</span>
+    <span>World Cup 2026 forecast feed</span>
     {% if snapshot_ts is defined and snapshot_ts %}
       &middot; <span class="timestamp">last updated {{ snapshot_ts.strftime('%Y-%m-%d %H:%M UTC') }}</span>
     {% endif %}

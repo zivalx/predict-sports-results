@@ -888,6 +888,57 @@ h1, h2, h3, h4 { margin: 0; line-height: 1.25; }
   margin-bottom: 0.2rem;
 }
 
+/* Retro forecast banner (match detail page) */
+.retro-banner {
+  padding: 0.625rem 1rem;
+  border-radius: 6px;
+  margin-bottom: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  border: 1px solid;
+}
+
+.retro-banner.correct {
+  background: var(--positive-soft);
+  border-color: var(--positive);
+  color: var(--positive);
+}
+
+.retro-banner.wrong {
+  background: var(--negative-soft);
+  border-color: var(--negative);
+  color: var(--negative);
+}
+
+.retro-banner-icon { font-style: normal; flex-shrink: 0; }
+.retro-banner-text { flex: 1; }
+
+/* Retro line inside result card */
+.retro-line {
+  padding: 0.375rem 0.875rem 0.625rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.retro-line.correct { color: var(--positive); }
+.retro-line.wrong   { color: var(--negative); }
+.retro-icon { flex-shrink: 0; }
+
+/* Score in result card */
+.result-score {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+  padding: 0 0.5rem;
+}
+
 /* Rationale */
 .rationale-section {
   margin-bottom: 1.75rem;

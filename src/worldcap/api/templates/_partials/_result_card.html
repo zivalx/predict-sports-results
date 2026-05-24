@@ -1,0 +1,25 @@
+{#
+  Result card — one completed match with score + retro forecast line.
+  Args: m — dict with match_id, home_name, away_name, home_score, away_score,
+             kickoff_utc, group_label, stage, retro (dict or None)
+#}
+{% set stage_label = ('Group ' + m.group_label) if m.group_label else m.stage %}
+<a href="/match/{{ m.match_id }}" class="match-card result-card" aria-label="{{ m.home_name }} vs {{ m.away_name }}">
+  <div class="match-card-meta">
+    <span>{{ m.kickoff_utc.strftime('%b %-d, %Y') }}</span>
+    <span class="stage-label">{{ stage_label }}</span>
+  </div>
+
+  <div class="match-card-teams">
+    <span class="match-team-name home">{{ m.home_name }}</span>
+    <span class="result-score">{{ m.home_score }} &ndash; {{ m.away_score }}</span>
+    <span class="match-team-name away">{{ m.away_name }}</span>
+  </div>
+
+  {% if m.retro is not none %}
+  <div class="retro-line {{ m.retro.css_class }}">
+    <span class="retro-icon">{{ m.retro.icon }}</span>
+    <span>{{ m.retro.text }}</span>
+  </div>
+  {% endif %}
+</a>

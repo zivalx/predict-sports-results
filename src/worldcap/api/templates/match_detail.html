@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}{{ home_name }} vs {{ away_name }} &middot; worldcap{% endblock %}
+{% block title %}{{ home_name }} vs {{ away_name }} &middot; World Cup 2026{% endblock %}
 {% block content %}
 
 {# ── Match header ─────────────────────────────────────────────── #}
@@ -29,6 +29,15 @@
   <span class="final-score-label">Full Time</span>
   {{ home_name }} {{ home_score }} &ndash; {{ away_score }} {{ away_name }}
 </div>
+
+{# ── Forecast vs actual retro banner ─────────────────────────── #}
+{% if retro is not none %}
+<div class="retro-banner {{ retro.css_class }}">
+  <span class="retro-banner-icon">{{ retro.icon }}</span>
+  <span class="retro-banner-text">{{ retro.text }}</span>
+</div>
+{% endif %}
+
 {% endif %}
 
 {# ── Probability section ──────────────────────────────────────── #}
