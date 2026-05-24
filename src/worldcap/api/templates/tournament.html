@@ -1,45 +1,85 @@
 {% extends "base.html" %}
 {% block title %}worldcap · tournament outlook{% endblock %}
 {% block content %}
-<section>
-  <div class="section-header">
-    <h2>Tournament outlook — {{ competition_name }}</h2>
-  </div>
 
-  {% if rows %}
-  <table>
-    <thead>
-      <tr>
-        <th>#</th>
-        <th>Team</th>
-        <th><a href="?order_by=p_champion">Champion%</a></th>
-        <th><a href="?order_by=p_runner_up">Runner-up%</a></th>
-        <th><a href="?order_by=p_semi">Semi%</a></th>
-        <th><a href="?order_by=p_top_group">Top of group%</a></th>
-        <th>Polymarket</th>
-        <th><a href="?order_by=edge_vs_poly">Edge</a></th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for row in rows %}
-      <tr>
-        <td>{{ row.rank }}</td>
-        <td>{{ row.team_name }}</td>
-        <td>{{ '%.1f' % (row.p_champion * 100) }}%</td>
-        <td>{{ '%.1f' % (row.p_runner_up * 100) }}%</td>
-        <td>{{ '%.1f' % (row.p_semi * 100) }}%</td>
-        <td>{{ '%.1f' % (row.p_top_group * 100) }}%</td>
-        <td>{{ '%.1f' % (row.poly_p_champion * 100) }}%</td>
-        <td class="{% if row.edge_vs_poly > 0 %}edge-positive{% elif row.edge_vs_poly < 0 %}edge-negative{% endif %}">
-          {{ '%+.1fpp' % (row.edge_vs_poly * 100) }}
-        </td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-  <p class="timestamp">Sorted by {{ order_by }} · click a header to re-sort</p>
-  {% else %}
+<div class="section-header" style="margin-top: 1.5rem; margin-bottom: 1.25rem;">
+  <h2 class="section-title">Tournament outlook &mdash; {{ competition_name }}</h2>
+</div>
+
+{% if rows %}
+<div style="overflow-x: auto;">
+<table class="table-modern">
+  <thead>
+    <tr>
+      <th class="col-rank">#</th>
+      <th>Team</th>
+      <th>
+        <a href="?order_by=p_champion" {% if order_by == "p_champion" %}class="sorted"{% endif %}>
+          Champion% ↕
+        </a>
+      </th>
+      <th>
+        <a href="?order_by=p_runner_up" {% if order_by == "p_runner_up" %}class="sorted"{% endif %}>
+          Runner-up% ↕
+        </a>
+      </th>
+      <th>
+        <a href="?order_by=p_semi" {% if order_by == "p_semi" %}class="sorted"{% endif %}>
+          Semi% ↕
+        </a>
+      </th>
+      <th>
+        <a href="?order_by=p_top_group" {% if order_by == "p_top_group" %}class="sorted"{% endif %}>
+          Top-of-group% ↕
+        </a>
+      </th>
+      <th>Polymarket</th>
+      <th>
+        <a href="?order_by=edge_vs_poly" {% if order_by == "edge_vs_poly" %}class="sorted"{% endif %}>
+          Edge ↕
+        </a>
+      </th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for row in rows %}
+    <tr>
+      <td class="col-rank muted">{{ row.rank }}</td>
+      <td class="col-team">{{ row.team_name }}</td>
+      <td>
+        <div class="inline-bar-wrap">
+          <div class="inline-bar">
+            <div class="inline-bar-fill" style="width: {{ '%.1f' % (row.p_champion * 100) }}%"></div>
+          </div>
+          <span class="col-pct">{{ '%.1f' % (row.p_champion * 100) }}%</span>
+        </div>
+      </td>
+      <td class="col-pct">{{ '%.1f' % (row.p_runner_up * 100) }}%</td>
+      <td class="col-pct">{{ '%.1f' % (row.p_semi * 100) }}%</td>
+      <td class="col-pct">{{ '%.1f' % (row.p_top_group * 100) }}%</td>
+      <td class="col-pct">{{ '%.1f' % (row.poly_p_champion * 100) }}%</td>
+      <td>
+        {% set edge_pp = row.edge_vs_poly * 100 %}
+        {% if edge_pp > 0.5 %}
+          <span class="edge-chip positive">+{{ '%.1f' % edge_pp }}pp</span>
+        {% elif edge_pp < -0.5 %}
+          <span class="edge-chip negative">{{ '%.1f' % edge_pp }}pp</span>
+        {% else %}
+          <span class="edge-chip neutral">{{ '%+.1f' % edge_pp }}pp</span>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+<p class="table-caption">Sorted by {{ order_by }} &middot; click a column header to re-sort</p>
+
+{% else %}
+<div class="empty-state">
+  <div class="empty-state-icon">&#9670;</div>
   <p>No tournament forecast yet. Run a refresh to populate this page.</p>
-  {% endif %}
-</section>
+</div>
+{% endif %}
+
 {% endblock %}

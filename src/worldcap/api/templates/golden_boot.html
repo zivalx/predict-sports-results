@@ -1,44 +1,74 @@
 {% extends "base.html" %}
 {% block title %}worldcap · Golden Boot race{% endblock %}
 {% block content %}
-<section>
-  <div class="section-header">
-    <h2>Golden Boot race — {{ competition_name }}</h2>
-  </div>
 
-  {% if rows %}
-  <table>
-    <thead>
-      <tr>
-        <th>#</th>
-        <th>Player</th>
-        <th>Team</th>
-        <th>P(top scorer)</th>
-        <th>Expected goals</th>
-        <th>Polymarket</th>
-        <th>Edge</th>
-        <th>g/90</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for row in rows %}
-      <tr>
-        <td>{{ row.rank }}</td>
-        <td>{{ row.player_name }}</td>
-        <td>{{ row.team_name }}</td>
-        <td>{{ '%.1f' % (row.p_golden_boot * 100) }}%</td>
-        <td>{{ '%.2f' % row.expected_goals }}</td>
-        <td>{% if row.poly_p_top_scorer is not none %}{{ '%.1f' % (row.poly_p_top_scorer * 100) }}%{% else %}—{% endif %}</td>
-        <td class="{% if row.edge_vs_poly > 0 %}edge-positive{% elif row.edge_vs_poly < 0 %}edge-negative{% endif %}">
-          {% if row.poly_p_top_scorer is not none %}{{ '%+.1fpp' % (row.edge_vs_poly * 100) }}{% else %}—{% endif %}
-        </td>
-        <td>{{ '%.2f' % row.goals_per_90 }}</td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-  {% else %}
+<div class="section-header" style="margin-top: 1.5rem; margin-bottom: 1.25rem;">
+  <h2 class="section-title">Golden Boot race &mdash; {{ competition_name }}</h2>
+</div>
+
+{% if rows %}
+<div style="overflow-x: auto;">
+<table class="table-modern">
+  <thead>
+    <tr>
+      <th class="col-rank">#</th>
+      <th>Player</th>
+      <th>Team</th>
+      <th>P(top scorer)</th>
+      <th>Expected goals</th>
+      <th>Polymarket</th>
+      <th>Edge</th>
+      <th>g/90</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for row in rows %}
+    <tr>
+      <td class="col-rank muted">{{ row.rank }}</td>
+      <td class="col-player">{{ row.player_name }}</td>
+      <td class="muted">{{ row.team_name }}</td>
+      <td>
+        <div class="inline-bar-wrap">
+          <div class="inline-bar">
+            <div class="inline-bar-fill" style="width: {{ '%.1f' % (row.p_golden_boot * 100) }}%"></div>
+          </div>
+          <span class="col-pct">{{ '%.1f' % (row.p_golden_boot * 100) }}%</span>
+        </div>
+      </td>
+      <td class="col-pct tabular">{{ '%.2f' % row.expected_goals }}</td>
+      <td class="col-pct">
+        {% if row.poly_p_top_scorer is not none %}
+          {{ '%.1f' % (row.poly_p_top_scorer * 100) }}%
+        {% else %}
+          <span class="muted">—</span>
+        {% endif %}
+      </td>
+      <td>
+        {% if row.poly_p_top_scorer is not none %}
+          {% set edge_pp = row.edge_vs_poly * 100 %}
+          {% if edge_pp > 0.5 %}
+            <span class="edge-chip positive">+{{ '%.1f' % edge_pp }}pp</span>
+          {% elif edge_pp < -0.5 %}
+            <span class="edge-chip negative">{{ '%.1f' % edge_pp }}pp</span>
+          {% else %}
+            <span class="edge-chip neutral">{{ '%+.1f' % edge_pp }}pp</span>
+          {% endif %}
+        {% else %}
+          <span class="muted">—</span>
+        {% endif %}
+      </td>
+      <td class="col-pct tabular">{{ '%.2f' % row.goals_per_90 }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+
+{% else %}
+<div class="empty-state">
+  <div class="empty-state-icon">&#9651;</div>
   <p>No watchlist players or top-scorer forecast yet.</p>
-  {% endif %}
-</section>
+</div>
+{% endif %}
+
 {% endblock %}

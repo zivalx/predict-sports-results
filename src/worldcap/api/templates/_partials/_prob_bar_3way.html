@@ -1,0 +1,21 @@
+{#
+  3-way probability bar for match outcomes.
+  Args:
+    p_home   — float 0-100
+    p_draw   — float 0-100
+    p_away   — float 0-100
+    home_name — string
+    away_name — string
+#}
+<div class="prob-bar-3way">
+  <div class="prob-bar-3way-track">
+    <div class="seg-home" style="flex: {{ p_home }}"></div>
+    <div class="seg-draw" style="flex: {{ p_draw }}"></div>
+    <div class="seg-away" style="flex: {{ p_away }}"></div>
+  </div>
+  <div class="prob-bar-3way-labels">
+    <span class="lbl-home"><span class="lbl-val">{{ '%.0f' % p_home }}%</span></span>
+    <span class="lbl-draw"><span class="lbl-val">{{ '%.0f' % p_draw }}%</span> Draw</span>
+    <span class="lbl-away"><span class="lbl-val">{{ '%.0f' % p_away }}%</span></span>
+  </div>
+</div>
