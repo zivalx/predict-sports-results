@@ -1,0 +1,19 @@
+[Unit]
+Description=worldcap — daily WhatsApp post
+Wants=worldcap-wa.timer
+After=worldcap.service
+
+[Service]
+Type=oneshot
+User=worldcap
+Group=worldcap
+WorkingDirectory=/opt/worldcap/code/wa-bot
+EnvironmentFile=/opt/worldcap/wa-bot.env
+ExecStart=/usr/bin/npm start
+
+# Hardening
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

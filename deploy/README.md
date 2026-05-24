@@ -148,3 +148,41 @@ sudo systemctl restart worldcap.service
 - **Daily refresh never fires**: confirm `DAILY_REFRESH_CRON` is in UTC. APScheduler runs in UTC.
 - **Empty rationale section in digest**: `ANTHROPIC_API_KEY` not set (graceful degradation — pipeline still runs).
 - **404 from /api/team_overview**: team not in DB. Run `/refresh` to ingest fixtures first.
+
+## (Optional) WhatsApp daily delivery
+
+worldcap ships an isolated WhatsApp bot under `wa-bot/` that posts the
+daily digest to a WhatsApp group. **It does not interfere with any other
+WhatsApp bot you may have running** — it uses its own session namespace
+(`clientId="worldcap"`).
+
+### One-time setup on the VPS
+
+```bash
+sudo apt install -y nodejs npm
+# Chrome dependencies for whatsapp-web.js / puppeteer
+sudo apt install -y libxss1 libgtk-3-0 libnss3 libasound2t64 libgbm1
+
+sudo -u worldcap bash <<'EOF'
+cd /opt/worldcap/code/wa-bot
+npm install
+cp .env.example /opt/worldcap/wa-bot.env
+# Fill in WORLDCAP_GROUP_NAME and (optionally) override LATEST_DIGEST_PATH/FOOTER
+EOF
+
+# First run — scan the QR code from your phone. Run from a tty so QR
+# renders properly:
+sudo -u worldcap bash -c 'cd /opt/worldcap/code/wa-bot && set -a && source /opt/worldcap/wa-bot.env && set +a && npm start'
+```
+
+### systemd timer (daily at 09:05 UTC)
+
+```bash
+sudo cp /opt/worldcap/code/deploy/worldcap-wa.service /etc/systemd/system/
+sudo cp /opt/worldcap/code/deploy/worldcap-wa.timer /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now worldcap-wa.timer
+sudo systemctl list-timers | grep worldcap-wa
+```
+
+Logs: `journalctl -u worldcap-wa.service -e`
