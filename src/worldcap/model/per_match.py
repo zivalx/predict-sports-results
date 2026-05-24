@@ -1,14 +1,17 @@
 """Per-match forecast generator.
 
-For every fixture-known match within the horizon, compute Elo-derived 3-way
-probabilities, optionally blend with a per-match Polymarket market, and
-persist MatchForecast rows linked to the given snapshot.
+For every fixture-known scheduled match with kickoff in the future, compute
+Elo-derived 3-way probabilities, optionally blend with a per-match Polymarket
+market, and persist MatchForecast rows linked to the given snapshot.
+
+Rationale generation (expensive Claude calls) is a separate step handled by
+jobs/refresh.py with its own configurable horizon (RATIONALE_HORIZON_DAYS).
 
 Plan 2 has no per-match Polymarket ingest yet, so market_p is always None.
 Plan 3+ will plumb it through.
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from sqlmodel import select
 
@@ -24,15 +27,15 @@ log = get_logger(__name__)
 async def generate_match_forecasts(
     snapshot_id: int,
     as_of: datetime,
-    horizon_days: int = 14,
 ) -> dict:
-    """Write MatchForecast rows for fixture-known matches with kickoff in [as_of, as_of + horizon_days].
+    """Write MatchForecast rows for ALL fixture-known scheduled matches with
+    kickoff in the future. Generates probability forecasts; rationale generation
+    is a separate step (handled by jobs/refresh.py with its own horizon).
 
     Returns {"forecasts_written": int, "matches_skipped_unrated": int}.
     Matches with no teams resolved (knockout slot placeholders) are silently
     skipped and not counted as "unrated".
     """
-    horizon_end = as_of + timedelta(days=horizon_days)
     forecasts_written = 0
     skipped_unrated = 0
 
@@ -45,8 +48,9 @@ async def generate_match_forecasts(
             select(Match)
             .where(Match.competition_id == snap.competition_id)
             .where(Match.kickoff_utc >= as_of)
-            .where(Match.kickoff_utc < horizon_end)
             .where(Match.status == "SCHEDULED")
+            .where(Match.home_team_id.is_not(None))
+            .where(Match.away_team_id.is_not(None))
         )).scalars().all()
 
         ratings_by_team = {
@@ -55,8 +59,6 @@ async def generate_match_forecasts(
         }
 
         for m in matches:
-            if m.home_team_id is None or m.away_team_id is None:
-                continue
             home_r = ratings_by_team.get(m.home_team_id)
             away_r = ratings_by_team.get(m.away_team_id)
             if home_r is None or away_r is None:

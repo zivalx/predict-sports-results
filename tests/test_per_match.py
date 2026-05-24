@@ -66,7 +66,6 @@ async def test_generates_one_forecast_per_eligible_match():
     summary = await generate_match_forecasts(
         snapshot_id=snap_id,
         as_of=as_of,
-        horizon_days=14,
     )
     assert summary == {"forecasts_written": 1, "matches_skipped_unrated": 0}
 
@@ -86,17 +85,58 @@ async def test_generates_one_forecast_per_eligible_match():
 
 
 @pytest.mark.asyncio
-async def test_skips_matches_outside_horizon():
+async def test_generates_forecast_for_match_far_in_future():
+    """A match 60 days out should still get a MatchForecast row (no horizon cap)."""
     as_of = datetime(2026, 5, 22, tzinfo=timezone.utc)
-    snap_id = await _setup(as_of)
+    # Rebuild setup but with a match 60 days out instead of 7.
+    await init_db()
+    await seed()
+    async with get_session() as session:
+        comp = (await session.execute(select(Competition))).scalar_one()
+        session.add_all([
+            Team(external_id=761, name="Argentina", country_code="ARG"),
+            Team(external_id=762, name="Germany", country_code="GER"),
+        ])
+        await session.flush()
+        teams = {t.name: t for t in (await session.execute(select(Team))).scalars().all()}
+        session.add_all([
+            TeamRating(team_id=teams["Argentina"].id, rating=1820.0,
+                       last_updated=as_of, source="seed"),
+            TeamRating(team_id=teams["Germany"].id, rating=1800.0,
+                       last_updated=as_of, source="seed"),
+        ])
+        session.add(Match(
+            external_id=2,
+            competition_id=comp.id,
+            stage="group",
+            group_label="B",
+            home_team_id=teams["Argentina"].id,
+            away_team_id=teams["Germany"].id,
+            kickoff_utc=as_of + timedelta(days=60),
+            status="SCHEDULED",
+        ))
+        snap = ForecastSnapshot(
+            competition_id=comp.id,
+            snapshot_date=as_of,
+            snapshot_trigger="manual",
+            poly_odds_hash="y",
+            model_version="elo-v0",
+        )
+        session.add(snap)
+        await session.commit()
+        await session.refresh(snap)
+        snap_id = snap.id
 
-    # Horizon = 3 days; the seeded match is 7 days out → skipped.
-    summary = await generate_match_forecasts(
-        snapshot_id=snap_id,
-        as_of=as_of,
-        horizon_days=3,
-    )
-    assert summary == {"forecasts_written": 0, "matches_skipped_unrated": 0}
+    summary = await generate_match_forecasts(snapshot_id=snap_id, as_of=as_of)
+    assert summary["forecasts_written"] == 1
+    assert summary["matches_skipped_unrated"] == 0
+
+    async with get_session() as session:
+        rows = (await session.execute(
+            select(MatchForecast).where(MatchForecast.snapshot_id == snap_id)
+        )).scalars().all()
+    assert len(rows) == 1
+    assert rows[0].p_home + rows[0].p_draw + rows[0].p_away == pytest.approx(1.0, abs=1e-9)
 
 
 @pytest.mark.asyncio
@@ -115,7 +155,6 @@ async def test_skips_matches_with_missing_team_rating():
     summary = await generate_match_forecasts(
         snapshot_id=snap_id,
         as_of=as_of,
-        horizon_days=14,
     )
     assert summary["forecasts_written"] == 0
     assert summary["matches_skipped_unrated"] == 1
@@ -144,7 +183,6 @@ async def test_skips_matches_with_no_teams_resolved():
     summary = await generate_match_forecasts(
         snapshot_id=snap_id,
         as_of=as_of,
-        horizon_days=14,
     )
     # Still 1 forecast (the BRA-FRA match), the slot match is silently skipped.
     assert summary["forecasts_written"] == 1
