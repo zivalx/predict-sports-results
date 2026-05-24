@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}World Cup 2026 · Results{% endblock %}
+{% block content %}
+
+<div class="section-header" style="margin-top: 1.5rem; margin-bottom: 1.25rem;">
+  <h2 class="section-title">Results</h2>
+</div>
+
+{% if matches %}
+<div class="match-cards">
+  {% for m in matches %}
+    {% include "_partials/_result_card.html" %}
+  {% endfor %}
+</div>
+{% else %}
+<div class="empty-state">
+  <div class="empty-state-icon">&#9203;</div>
+  <p>
+    No completed matches yet
+    {% if competition_start %}
+      &mdash; group stage starts {{ competition_start.strftime('%B %-d, %Y') }}
+    {% endif %}
+  </p>
+</div>
+{% endif %}
+
+{% endblock %}

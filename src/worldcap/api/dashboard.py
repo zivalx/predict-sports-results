@@ -27,6 +27,65 @@ from worldcap.models import (
 )
 
 
+@dataclass
+class RetroResult:
+    """Pre-match forecast vs actual outcome comparison."""
+    icon: str          # "✓" or "✗"
+    css_class: str     # "correct" or "wrong"
+    text: str          # human-readable sentence
+
+
+def _compute_retro(
+    mf: MatchForecast,
+    home_name: str,
+    away_name: str,
+    home_score: int,
+    away_score: int,
+) -> RetroResult:
+    """Build a retro forecast comparison from a MatchForecast + final score."""
+    # Predicted outcome
+    probs = {"home_win": mf.p_home, "draw": mf.p_draw, "away_win": mf.p_away}
+    predicted = max(probs, key=lambda k: probs[k])
+    predicted_pct = round(probs[predicted] * 100)
+
+    # Actual outcome
+    if home_score > away_score:
+        actual = "home_win"
+    elif home_score == away_score:
+        actual = "draw"
+    else:
+        actual = "away_win"
+
+    # Build text
+    if predicted == "home_win":
+        predicted_label = f"{home_name} to win"
+    elif predicted == "away_win":
+        predicted_label = f"{away_name} to win"
+    else:
+        predicted_label = "a draw"
+
+    score_str = f"{home_score}–{away_score}"
+
+    if predicted == actual:
+        return RetroResult(
+            icon="✓",
+            css_class="correct",
+            text=f"We forecast {predicted_label} ({predicted_pct}%); correct — {home_name} {score_str} {away_name}",
+        )
+    else:
+        if actual == "home_win":
+            actual_label = f"{home_name} won"
+        elif actual == "away_win":
+            actual_label = f"{away_name} won"
+        else:
+            actual_label = "it finished a draw"
+        return RetroResult(
+            icon="✗",
+            css_class="wrong",
+            text=f"We forecast {predicted_label} ({predicted_pct}%); {actual_label} {score_str}",
+        )
+
+
 router = APIRouter()
 
 
@@ -377,6 +436,16 @@ async def match_detail(request: Request, match_id: int):
                 )).scalars().all()
             ]
 
+        # Compute retro if match is FT and we have a forecast
+        retro: Optional[RetroResult] = None
+        if (
+            match.status == "FT"
+            and mf is not None
+            and match.home_score is not None
+            and match.away_score is not None
+        ):
+            retro = _compute_retro(mf, home_name, away_name, match.home_score, match.away_score)
+
         ctx = MatchDetailContext(
             match_id=match.id,
             home_name=home_name,
@@ -419,6 +488,7 @@ async def match_detail(request: Request, match_id: int):
         "rationale_md": ctx.rationale_md,
         "home_headlines": ctx.home_headlines,
         "away_headlines": ctx.away_headlines,
+        "retro": retro,
     }
     return request.app.state.templates.TemplateResponse(
         request=request,
@@ -491,4 +561,100 @@ async def golden_boot(request: Request):
         request=request,
         name="golden_boot.html",
         context={"request": request, "rows": [row.__dict__ for row in rows], "competition_name": comp.name},
+    )
+
+
+@dataclass
+class ResultMatchRow:
+    match_id: int
+    home_name: str
+    away_name: str
+    home_score: int
+    away_score: int
+    kickoff_utc: datetime
+    group_label: Optional[str]
+    stage: str
+    retro: Optional[RetroResult]
+
+
+@router.get("/results", response_class=HTMLResponse)
+async def results(request: Request):
+    settings = get_settings()
+    async with get_session() as session:
+        comp = (await session.execute(
+            select(Competition).where(Competition.code == settings.db_competition_code)
+        )).scalar_one_or_none()
+
+        competition_start: Optional[datetime] = comp.start_date if comp else None
+
+        if comp is None:
+            return request.app.state.templates.TemplateResponse(
+                request=request,
+                name="results.html",
+                context={"matches": [], "competition_start": None},
+            )
+
+        # All FT matches, newest first
+        ft_matches = (await session.execute(
+            select(Match)
+            .where(Match.competition_id == comp.id)
+            .where(Match.status == "FT")
+            .order_by(Match.kickoff_utc.desc())
+        )).scalars().all()
+
+        if not ft_matches:
+            return request.app.state.templates.TemplateResponse(
+                request=request,
+                name="results.html",
+                context={"matches": [], "competition_start": competition_start},
+            )
+
+        teams_by_id = {
+            t.id: t for t in (await session.execute(select(Team))).scalars().all()
+        }
+
+        # Latest snapshot for forecasts
+        snap = (await session.execute(
+            select(ForecastSnapshot)
+            .where(ForecastSnapshot.competition_id == comp.id)
+            .order_by(ForecastSnapshot.snapshot_date.desc())
+        )).scalars().first()
+
+        # Load all match forecasts for these matches from the latest snapshot
+        mf_by_match_id: dict[int, MatchForecast] = {}
+        if snap is not None:
+            match_ids = [m.id for m in ft_matches]
+            mfs = (await session.execute(
+                select(MatchForecast)
+                .where(MatchForecast.snapshot_id == snap.id)
+                .where(MatchForecast.match_id.in_(match_ids))
+            )).scalars().all()
+            mf_by_match_id = {mf.match_id: mf for mf in mfs}
+
+        rows: list[dict] = []
+        for m in ft_matches:
+            if m.home_team_id is None or m.away_team_id is None:
+                continue
+            home_name = teams_by_id[m.home_team_id].name if m.home_team_id in teams_by_id else "TBD"
+            away_name = teams_by_id[m.away_team_id].name if m.away_team_id in teams_by_id else "TBD"
+            mf = mf_by_match_id.get(m.id)
+            retro: Optional[RetroResult] = None
+            if mf is not None and m.home_score is not None and m.away_score is not None:
+                retro = _compute_retro(mf, home_name, away_name, m.home_score, m.away_score)
+            rows.append({
+                "match_id": m.id,
+                "home_name": home_name,
+                "away_name": away_name,
+                "home_score": m.home_score,
+                "away_score": m.away_score,
+                "kickoff_utc": m.kickoff_utc,
+                "group_label": m.group_label,
+                "stage": m.stage,
+                "retro": retro,
+            })
+
+    return request.app.state.templates.TemplateResponse(
+        request=request,
+        name="results.html",
+        context={"matches": rows, "competition_start": competition_start},
     )

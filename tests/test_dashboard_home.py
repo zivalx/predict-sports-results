@@ -26,7 +26,7 @@ async def test_home_empty_state():
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         r = await client.get("/")
     assert r.status_code == 200
-    assert "worldcap" in r.text.lower()
+    assert "world cup" in r.text.lower()
     assert "Refresh now" in r.text
 
 
