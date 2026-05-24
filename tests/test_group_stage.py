@@ -20,9 +20,20 @@ def teams():
 def test_returns_4_teams_in_order(teams):
     ratings = {t: 1500.0 for t in teams}
     rng = random.Random(42)
-    order = simulate_group(teams, ratings, rng=rng)
+    order, smap = simulate_group(teams, ratings, rng=rng)
     assert len(order) == 4
     assert set(order) == set(teams)
+
+
+def test_returns_standings_map(teams):
+    ratings = {t: 1500.0 for t in teams}
+    rng = random.Random(42)
+    order, smap = simulate_group(teams, ratings, rng=rng)
+    assert set(smap.keys()) == set(teams)
+    for team, standing in smap.items():
+        assert hasattr(standing, "points")
+        assert hasattr(standing, "gd")
+        assert hasattr(standing, "gf")
 
 
 def test_deterministic_under_seeded_rng(teams):
@@ -38,7 +49,7 @@ def test_dominant_team_tops_group_most_of_the_time(teams):
     top_counts = Counter()
     n = 1000
     for i in range(n):
-        order = simulate_group(teams, ratings, rng=random.Random(i))
+        order, _ = simulate_group(teams, ratings, rng=random.Random(i))
         top_counts[order[0]] += 1
     assert top_counts[teams[0]] / n > 0.85  # dominant team tops > 85% of the time
 

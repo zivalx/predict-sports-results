@@ -114,7 +114,15 @@ async def generate_rationale_for_match(
     prompt = build_match_rationale_prompt(ctx)
 
     # Call outside the session (no DB writes during the LLM call)
-    result = await claude_client.complete(prompt=prompt, model=model, max_tokens=max_tokens)
+    try:
+        result = await claude_client.complete(prompt=prompt, model=model, max_tokens=max_tokens)
+    except Exception as exc:  # noqa: BLE001
+        log.warning(
+            "rationale.call_failed",
+            match_forecast_id=match_forecast_id,
+            error=str(exc),
+        )
+        return {"rationale_written": False, "error": str(exc)}
     if result is None:
         return {"rationale_written": False}
 

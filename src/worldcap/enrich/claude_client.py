@@ -137,7 +137,12 @@ def _parse_score(text: str) -> Optional[SentimentResult]:
 
 
 class FakeClaudeClient:
-    """Test double — identical interface, no network. Tracks call count + tokens."""
+    """Test double — identical interface, no network. Tracks call count + tokens.
+
+    Pass ``raise_on_call`` to simulate API failures: every call to
+    ``complete`` or ``score_text`` will raise that exception instead of
+    returning a canned response.  Useful for testing error-handling paths.
+    """
 
     def __init__(
         self,
@@ -146,6 +151,7 @@ class FakeClaudeClient:
         token_budget: int = 100_000,
         disabled: bool = False,
         per_call_output_tokens: int = 30,
+        raise_on_call: Optional[Exception] = None,
     ):
         self._canned_completion = canned_completion
         self._canned_score = canned_score
@@ -153,6 +159,7 @@ class FakeClaudeClient:
         self._tokens_used = 0
         self._disabled = disabled
         self._per_call_output_tokens = per_call_output_tokens
+        self._raise_on_call = raise_on_call
         self.calls = 0
 
     @property
@@ -171,6 +178,8 @@ class FakeClaudeClient:
     async def complete(self, prompt: str, *, model: str, max_tokens: int) -> Optional[ClaudeCallResult]:
         if self._disabled:
             return None
+        if self._raise_on_call is not None:
+            raise self._raise_on_call
         self._check_budget()
         self.calls += 1
         self._tokens_used += self._per_call_output_tokens
@@ -183,6 +192,8 @@ class FakeClaudeClient:
     async def score_text(self, text: str, *, model: str) -> Optional[SentimentResult]:
         if self._disabled:
             return None
+        if self._raise_on_call is not None:
+            raise self._raise_on_call
         if self._canned_score is None:
             return None
         self._check_budget()

@@ -106,20 +106,23 @@ async def run_refresh(
         log.warning("forecast.top_scorer.skipped_no_sim_result")
 
     if claude_client is not None and not claude_client.is_disabled():
-        async with get_session() as session:
-            match_forecasts = (await session.execute(
-                select(MatchForecast).where(MatchForecast.snapshot_id == snap.id)
-            )).scalars().all()
-        rationale_count = 0
-        for mf in match_forecasts:
-            try:
-                result = await generate_rationale_for_match(claude_client, match_forecast_id=mf.id)
-                if result.get("rationale_written"):
-                    rationale_count += 1
-            except TokenBudgetExceeded:
-                log.warning("rationale.budget_exceeded", written_before_stop=rationale_count)
-                break
-        log.info("rationale.batch", rationales_written=rationale_count)
+        try:
+            async with get_session() as session:
+                match_forecasts = (await session.execute(
+                    select(MatchForecast).where(MatchForecast.snapshot_id == snap.id)
+                )).scalars().all()
+            rationale_count = 0
+            for mf in match_forecasts:
+                try:
+                    result = await generate_rationale_for_match(claude_client, match_forecast_id=mf.id)
+                    if result.get("rationale_written"):
+                        rationale_count += 1
+                except TokenBudgetExceeded:
+                    log.warning("rationale.budget_exceeded", written_before_stop=rationale_count)
+                    break
+            log.info("rationale.batch", rationales_written=rationale_count)
+        except Exception as exc:  # noqa: BLE001
+            log.warning("rationale.block_failed", error=str(exc))
     else:
         log.warning("rationale.skipped_no_or_disabled_claude")
 

@@ -30,8 +30,12 @@ def simulate_group(
     ratings_by_team: dict[Any, float],
     *,
     rng: random.Random,
-) -> list[Any]:
-    """Play all 6 round-robin matches and return the 4 teams in finishing order.
+) -> tuple[list[Any], dict]:
+    """Play all 6 round-robin matches and return (standings, stats_map).
+
+    Returns:
+        ordered_teams: the 4 teams in finishing order (winner first).
+        standings_map: dict mapping each team → its _Standing (points, gd, gf).
 
     For each pair (home, away), `match_probabilities` produces (p_home, p_draw, p_away)
     using the home team's Elo + the standard 100-pt home advantage. We then sample
@@ -57,4 +61,5 @@ def simulate_group(
         )
         matches.append(GroupMatch(home=home, away=away, home_goals=h_goals, away_goals=a_goals))
 
-    return resolve_standings(matches, rng=rng)
+    ordered_teams, standings_map = resolve_standings(matches, rng=rng)
+    return ordered_teams, standings_map

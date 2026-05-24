@@ -1,8 +1,9 @@
 """Simulate a single-elimination knockout bracket starting from 32 seeded teams.
 
-For Plan 3 v0 the seeding scheme is simple: the input list of 32 teams is
-consumed pairwise in order. Winners advance in order so the bracket structure
-collapses naturally over R32 → R16 → QF → SF → F.
+The bracket follows the FIFA WC 2026 official bracket template defined in
+`bracket_template.py`. Rather than consuming teams pairwise, the bracket is
+resolved by following the WC2026_R16_FROM_R32 / WC2026_QF_FROM_R16 /
+WC2026_SF_FROM_QF / WC2026_F_FROM_SF connection tables.
 
 Knockout matches use match_probabilities with home_advantage=0 (treating all
 knockouts as neutral venues). On a sampled draw, a coin flip picks the advancer
@@ -21,6 +22,12 @@ import random
 from typing import Any
 
 from worldcap.model.match import match_probabilities
+from worldcap.model.simulator.bracket_template import (
+    WC2026_F_FROM_SF,
+    WC2026_QF_FROM_R16,
+    WC2026_R16_FROM_R32,
+    WC2026_SF_FROM_QF,
+)
 from worldcap.model.simulator.score_sampling import sample_outcome
 
 
@@ -44,15 +51,24 @@ def _play_knockout_match(
     return away
 
 
-def _play_round(
-    teams: list[Any],
+def _play_structured_round(
+    participants: list[Any],
+    pairings: list[tuple[int, int]],
     ratings: dict[Any, float],
     rng: random.Random,
 ) -> list[Any]:
-    """Play a knockout round: pairs are (teams[0], teams[1]), (teams[2], teams[3]), ..."""
+    """Play a structured knockout round given explicit pairings.
+
+    participants: list of teams competing in this round (indexable by the
+        indices referenced in `pairings`).
+    pairings: list of (left_idx, right_idx) pairs referencing positions in
+        the *previous* round's winner list.
+    Returns: list of winners in pairing order.
+    """
     winners: list[Any] = []
-    for i in range(0, len(teams), 2):
-        winners.append(_play_knockout_match(teams[i], teams[i + 1], ratings, rng))
+    for left_idx, right_idx in pairings:
+        winner = _play_knockout_match(participants[left_idx], participants[right_idx], ratings, rng)
+        winners.append(winner)
     return winners
 
 
@@ -62,7 +78,11 @@ def simulate_knockout(
     *,
     rng: random.Random,
 ) -> dict:
-    """Simulate R32 → F starting from 32 seeded teams.
+    """Simulate R32 → F following the FIFA WC 2026 bracket template.
+
+    seeded_teams: 32 teams in slot order matching WC2026_R32.  Each pair
+        (seeded_teams[2*i], seeded_teams[2*i+1]) is the (left, right) team
+        for R32 match index i.
 
     Returns a dict with keys champion, runner_up, semifinalists, rounds_reached.
     """
@@ -74,25 +94,40 @@ def simulate_knockout(
     # Initialize: all seeded teams reach at least R32
     rounds_reached: dict = {t: "R32" for t in seeded_teams}
 
-    r16 = _play_round(seeded_teams, ratings_by_team, rng)
-    for t in r16:
+    # --- R32 → 16 winners ---
+    # Play each of the 16 R32 matches (pairs of consecutive teams in seeded_teams)
+    r32_winners: list[Any] = []
+    for i in range(16):
+        left = seeded_teams[2 * i]
+        right = seeded_teams[2 * i + 1]
+        winner = _play_knockout_match(left, right, ratings_by_team, rng)
+        r32_winners.append(winner)
+
+    for t in r32_winners:
         rounds_reached[t] = "R16"
 
-    qf = _play_round(r16, ratings_by_team, rng)
-    for t in qf:
+    # --- R16 → 8 winners (structured pairings) ---
+    r16_winners = _play_structured_round(r32_winners, WC2026_R16_FROM_R32, ratings_by_team, rng)
+    for t in r16_winners:
         rounds_reached[t] = "QF"
 
-    sf = _play_round(qf, ratings_by_team, rng)
-    for t in sf:
+    # --- QF → 4 winners ---
+    qf_winners = _play_structured_round(r16_winners, WC2026_QF_FROM_R16, ratings_by_team, rng)
+    for t in qf_winners:
         rounds_reached[t] = "SF"
-    semifinalists = list(sf)  # capture before finalists round
+    semifinalists = list(qf_winners)  # capture before the final round
 
-    finalists = _play_round(sf, ratings_by_team, rng)
-    for t in finalists:
+    # --- SF → 2 finalists ---
+    sf_winners = _play_structured_round(qf_winners, WC2026_SF_FROM_QF, ratings_by_team, rng)
+    for t in sf_winners:
         rounds_reached[t] = "F"
 
-    champion = _play_knockout_match(finalists[0], finalists[1], ratings_by_team, rng)
-    runner_up = finalists[1] if champion == finalists[0] else finalists[0]
+    # --- Final ---
+    sf_left_idx, sf_right_idx = WC2026_F_FROM_SF
+    finalist_left = sf_winners[sf_left_idx]
+    finalist_right = sf_winners[sf_right_idx]
+    champion = _play_knockout_match(finalist_left, finalist_right, ratings_by_team, rng)
+    runner_up = finalist_right if champion == finalist_left else finalist_left
     rounds_reached[champion] = "champion"
     # runner_up stays at "F"
 
