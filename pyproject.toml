@@ -20,6 +20,9 @@ dependencies = [
     "connectors[polymarket,gnews,reddit] @ file:///Users/ziv.a/repos_/collectors/collectors",
 ]
 
+[project.scripts]
+worldcap = "worldcap.cli:main"
+
 [project.optional-dependencies]
 dev = [
     "pytest>=8.3.0",
