@@ -10,3 +10,11 @@ output/
 .ruff_cache/
 .coverage
 htmlcov/
+
+# WA bot
+wa-bot/node_modules/
+wa-bot/.wwebjs_auth/
+wa-bot/.wwebjs_cache/
+wa-bot/.env
+wa-bot/npm-debug.log
+wa-bot/*.log
