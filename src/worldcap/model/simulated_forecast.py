@@ -2,8 +2,7 @@
 
 This module replaces `model/naive.py`'s role for tournament outlook. It:
   1. Loads all teams + their Elo ratings + competition row
-  2. Builds the 12 groups from team country_code prefix
-     (A1..A4 → group A, etc.)
+  2. Builds the 12 groups from Match.group_label
   3. Runs simulate_tournament(...) for N iterations
   4. Persists a ForecastSnapshot + TournamentForecast rows
   5. Computes edge_vs_poly using the latest Polymarket outright snapshot
@@ -11,7 +10,6 @@ This module replaces `model/naive.py`'s role for tournament outlook. It:
 
 import hashlib
 import json
-from collections import defaultdict
 from datetime import datetime, timezone
 
 from sqlmodel import select
@@ -39,27 +37,41 @@ def _hash_payload(payload) -> str:
     return hashlib.sha256(json.dumps(payload, sort_keys=True).encode()).hexdigest()[:16]
 
 
-def _group_teams_by_country_code(teams: list[Team]) -> list[list[Team]]:
-    """Group teams by the *letter prefix* of their country_code (A1..A4 → group A).
+async def _group_teams_from_matches(session) -> list[list[Team]]:
+    """Group teams by their Match.group_label (production-real grouping).
 
-    Teams without a recognisable prefix are dropped. Each group is sorted by
-    code suffix for stable ordering.
+    For each unique group_label, collect the set of teams that appear in any
+    match in that group. Returns 12 groups of 4 teams each, sorted by label.
+    Groups that don't have exactly 4 distinct teams are dropped.
     """
-    by_group: dict[str, list[Team]] = defaultdict(list)
-    for t in teams:
-        code = (t.country_code or "").strip()
-        if not code or not code[0].isalpha():
+    from worldcap.models import Match
+
+    matches = (await session.execute(
+        select(Match).where(Match.group_label.is_not(None))
+    )).scalars().all()
+    teams_by_id = {
+        t.id: t for t in (await session.execute(select(Team))).scalars().all()
+    }
+
+    groups_by_label: dict[str, list] = {}
+    for m in matches:
+        if m.home_team_id is None or m.away_team_id is None:
             continue
-        prefix = code[0].upper()
-        by_group[prefix].append(t)
-    # Sort each group by full code so order is deterministic across runs
-    for label in by_group:
-        by_group[label].sort(key=lambda t: (t.country_code or ""))
-    # Only include groups with exactly 4 teams
+        home = teams_by_id.get(m.home_team_id)
+        away = teams_by_id.get(m.away_team_id)
+        if home is None or away is None:
+            continue
+        bucket = groups_by_label.setdefault(m.group_label, [])
+        if home not in bucket:
+            bucket.append(home)
+        if away not in bucket:
+            bucket.append(away)
+
     out = []
-    for label in sorted(by_group):
-        if len(by_group[label]) == 4:
-            out.append(by_group[label])
+    for label in sorted(groups_by_label):
+        teams = groups_by_label[label]
+        if len(teams) == 4:
+            out.append(teams)
     return out
 
 
@@ -86,7 +98,7 @@ async def generate_simulated_forecast(
         ratings_by_team_id = {r.team_id: r.rating for r in ratings_rows}
 
         # Build groups
-        groups = _group_teams_by_country_code(teams)
+        groups = await _group_teams_from_matches(session)
         if len(groups) != 12:
             # Skip simulator if the competition isn't fully seeded; still write
             # an (empty) snapshot so downstream `generate_match_forecasts` has

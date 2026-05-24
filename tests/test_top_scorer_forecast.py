@@ -1,4 +1,5 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
+from itertools import combinations
 
 import pytest
 from sqlmodel import select
@@ -13,7 +14,7 @@ from worldcap.models import (
     TeamRating,
     TopScorerForecast,
 )
-from worldcap.models.tournament import Competition
+from worldcap.models.tournament import Competition, Match
 from scripts.seed_competition import seed
 
 
@@ -21,7 +22,11 @@ GROUP_LABELS = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L"]
 
 
 async def _seed_wc_teams_ratings_and_players(as_of: datetime):
+    """Seed 48 teams + ratings + players + 72 group-stage matches."""
     async with get_session() as session:
+        comp = (await session.execute(select(Competition))).scalar_one()
+
+        # Seed 48 teams
         for gi, label in enumerate(GROUP_LABELS):
             for ti in range(4):
                 session.add(Team(
@@ -31,11 +36,15 @@ async def _seed_wc_teams_ratings_and_players(as_of: datetime):
                 ))
         await session.flush()
         teams = (await session.execute(select(Team))).scalars().all()
+        teams_by_code = {t.country_code: t for t in teams}
+
+        # Seed team ratings
         for t in teams:
             session.add(TeamRating(
                 team_id=t.id, rating=1500.0,
                 last_updated=as_of, source="seed",
             ))
+
         # Add 3 watchlist players on team A1
         team_a1 = next(t for t in teams if t.country_code == "A1")
         session.add_all([
@@ -43,6 +52,24 @@ async def _seed_wc_teams_ratings_and_players(as_of: datetime):
             Player(name="Striker B", team_id=team_a1.id, goals_per_90=0.5, is_watchlist=True),
             Player(name="Striker C", team_id=team_a1.id, goals_per_90=0.3, is_watchlist=True),
         ])
+
+        # Group-stage matches: 6 per group (round-robin among 4 teams)
+        match_ext_id = 20000
+        for gi, label in enumerate(GROUP_LABELS):
+            members = [teams_by_code[f"{label}{i+1}"] for i in range(4)]
+            for home, away in combinations(members, 2):
+                session.add(Match(
+                    external_id=match_ext_id,
+                    competition_id=comp.id,
+                    stage="group",
+                    group_label=label,
+                    home_team_id=home.id,
+                    away_team_id=away.id,
+                    kickoff_utc=datetime(2026, 6, 11, 20, 0, tzinfo=timezone.utc) + timedelta(hours=match_ext_id - 20000),
+                    status="SCHEDULED",
+                ))
+                match_ext_id += 1
+
         await session.commit()
 
 

@@ -1,4 +1,5 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
+from itertools import combinations
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -95,12 +96,11 @@ GROUP_LABELS = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L"]
 
 
 def _build_full_wc_fixtures():
-    """48-team WC schedule from football-data-org-shaped DTOs.
+    """48-team WC schedule with all 72 group-stage fixtures from football-data-org-shaped DTOs.
 
-    Country codes follow the {label}{i} pattern so simulated_forecast can detect
-    the 12 groups via country_code prefix.
+    Country codes follow the {label}{i} pattern. Generates all 6 matches per group
+    (round-robin among 4 teams).
     """
-    from datetime import datetime, timezone
     from worldcap.ingest.sports_data import TeamDTO, FixtureDTO
 
     teams = []
@@ -111,20 +111,28 @@ def _build_full_wc_fixtures():
                 name=f"Team-{label}{ti+1}",
                 country_code=f"{label}{ti+1}",
             ))
-    # One fixture per group (we don't need all 72) — enough that the fixtures ingest runs
+
+    # All 72 group-stage fixtures: 6 per group (round-robin among 4 teams)
     fixtures = []
+    match_ext_id = 10000
     for gi, label in enumerate(GROUP_LABELS):
-        fixtures.append(FixtureDTO(
-            external_id=10_000 + gi,
-            stage="group",
-            group_label=label,
-            kickoff_utc=datetime(2026, 6, 11 + gi % 10, 20, 0, tzinfo=timezone.utc),
-            status="SCHEDULED",
-            home_external_id=gi * 4 + 1000,
-            away_external_id=gi * 4 + 1001,
-            home_score=None,
-            away_score=None,
-        ))
+        # Get the 4 team external IDs for this group
+        group_members_ext = [gi * 4 + ti + 1000 for ti in range(4)]
+        # Generate all combinations (6 total)
+        for home_ext, away_ext in combinations(group_members_ext, 2):
+            fixtures.append(FixtureDTO(
+                external_id=match_ext_id,
+                stage="group",
+                group_label=label,
+                kickoff_utc=datetime(2026, 6, 11, 20, 0, tzinfo=timezone.utc) + timedelta(hours=match_ext_id - 10000),
+                status="SCHEDULED",
+                home_external_id=home_ext,
+                away_external_id=away_ext,
+                home_score=None,
+                away_score=None,
+            ))
+            match_ext_id += 1
+
     return teams, fixtures
 
 
