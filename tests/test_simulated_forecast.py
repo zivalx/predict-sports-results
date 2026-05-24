@@ -1,4 +1,5 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
+from itertools import combinations
 
 import pytest
 from sqlmodel import select
@@ -12,7 +13,7 @@ from worldcap.models import (
     TeamRating,
     TournamentForecast,
 )
-from worldcap.models.tournament import Competition
+from worldcap.models.tournament import Competition, Match
 from scripts.seed_competition import seed
 
 
@@ -20,9 +21,11 @@ GROUP_LABELS = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L"]
 
 
 async def _seed_wc_teams_and_ratings(as_of: datetime):
-    """Seed 48 teams (4 per group, groups A..L) with default Elo rating."""
+    """Seed 48 teams (4 per group, groups A..L) with default Elo rating and 72 group-stage matches."""
     async with get_session() as session:
-        # Read existing teams via re-query; we'll add fresh ones.
+        comp = (await session.execute(select(Competition))).scalar_one()
+
+        # Seed 48 teams (4 per group)
         for gi, group_label in enumerate(GROUP_LABELS):
             for ti in range(4):
                 ext = gi * 4 + ti + 1000  # arbitrary external ids
@@ -34,6 +37,9 @@ async def _seed_wc_teams_and_ratings(as_of: datetime):
         await session.flush()
 
         teams = (await session.execute(select(Team))).scalars().all()
+        teams_by_code = {t.country_code: t for t in teams}
+
+        # Seed team ratings
         for t in teams:
             session.add(TeamRating(
                 team_id=t.id,
@@ -41,6 +47,24 @@ async def _seed_wc_teams_and_ratings(as_of: datetime):
                 last_updated=as_of,
                 source="seed",
             ))
+
+        # Group-stage matches: 6 per group (round-robin among 4 teams)
+        match_ext_id = 20000
+        for gi, label in enumerate(GROUP_LABELS):
+            members = [teams_by_code[f"{label}{i+1}"] for i in range(4)]
+            for home, away in combinations(members, 2):
+                session.add(Match(
+                    external_id=match_ext_id,
+                    competition_id=comp.id,
+                    stage="group",
+                    group_label=label,
+                    home_team_id=home.id,
+                    away_team_id=away.id,
+                    kickoff_utc=datetime(2026, 6, 11, 20, 0, tzinfo=timezone.utc) + timedelta(hours=match_ext_id - 20000),
+                    status="SCHEDULED",
+                ))
+                match_ext_id += 1
+
         await session.commit()
 
 

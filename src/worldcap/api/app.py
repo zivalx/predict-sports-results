@@ -23,28 +23,77 @@ log = get_logger(__name__)
 
 
 def _default_clients():
-    """Production client builders. Imported lazily so tests don't need real keys."""
+    """Production client builders. Imported lazily so tests don't need real keys.
+
+    Returns: (football, poly, gnews_or_none, reddit_or_none, claude_or_none)
+    Clients whose required env vars are unset come back as None and the
+    pipeline will skip the corresponding step with a warning log.
+    """
     from connectors.polymarket import PolymarketClientConfig, PolymarketCollector
 
+    from worldcap.enrich.claude_client import ClaudeClient
     from worldcap.ingest.sports_data import FootballDataClient
 
     settings = get_settings()
     football = FootballDataClient(api_key=settings.football_data_api_key)
     poly = PolymarketCollector(PolymarketClientConfig(timeout=30))
-    return football, poly
+
+    gnews = None
+    if settings.gnews_api_key:
+        try:
+            from connectors.gnews import GNewsCollector, GNewsClientConfig
+            gnews = GNewsCollector(GNewsClientConfig(api_key=settings.gnews_api_key))
+        except ImportError:
+            pass  # connectors[gnews] extra not installed
+
+    reddit = None
+    if settings.reddit_client_id and settings.reddit_client_secret:
+        try:
+            from connectors.reddit import RedditCollector, RedditClientConfig
+            reddit = RedditCollector(RedditClientConfig(
+                client_id=settings.reddit_client_id,
+                client_secret=settings.reddit_client_secret,
+                user_agent=settings.reddit_user_agent,
+            ))
+        except ImportError:
+            pass
+
+    claude = None
+    if settings.anthropic_api_key:
+        claude = ClaudeClient(
+            api_key=settings.anthropic_api_key,
+            token_budget=settings.rationale_token_budget,
+        )
+
+    return football, poly, gnews, reddit, claude
 
 
-def build_app(football_client=None, poly_collector=None) -> FastAPI:
+def build_app(
+    football_client=None,
+    poly_collector=None,
+    gnews_collector=None,
+    reddit_collector=None,
+    claude_client=None,
+) -> FastAPI:
     configure_logging()
 
     if football_client is None or poly_collector is None:
-        football_client, poly_collector = _default_clients()
+        football_client, poly_collector, _gnews_default, _reddit_default, _claude_default = _default_clients()
+        if gnews_collector is None:
+            gnews_collector = _gnews_default
+        if reddit_collector is None:
+            reddit_collector = _reddit_default
+        if claude_client is None:
+            claude_client = _claude_default
 
     async def _trigger_refresh(trigger: str = "manual"):
         return await run_refresh(
             trigger=trigger,
             football_client=football_client,
             poly_collector=poly_collector,
+            gnews_collector=gnews_collector,
+            reddit_collector=reddit_collector,
+            claude_client=claude_client,
             as_of=datetime.now(timezone.utc),
         )
 
