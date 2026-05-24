@@ -15,8 +15,8 @@ def build_scheduler(
     """Build (but don't start) an AsyncIOScheduler with the refresh jobs registered.
 
     - `refresh_fn`: called daily at the cron time in settings.
-    - `post_match_fn`: called every `post_match_interval_minutes` minutes.
-      Defaults to `refresh_fn` if not provided.
+    - `post_match_fn`: if provided, called every `post_match_interval_minutes` minutes.
+      When None (default), no post-match job is registered — daily-only mode.
     """
     settings = get_settings()
     scheduler = AsyncIOScheduler(timezone="UTC")
@@ -28,12 +28,13 @@ def build_scheduler(
         coalesce=True,
         replace_existing=True,
     )
-    scheduler.add_job(
-        post_match_fn or refresh_fn,
-        trigger=IntervalTrigger(minutes=post_match_interval_minutes),
-        id="post_match_check",
-        max_instances=1,
-        coalesce=True,
-        replace_existing=True,
-    )
+    if post_match_fn is not None:
+        scheduler.add_job(
+            post_match_fn,
+            trigger=IntervalTrigger(minutes=post_match_interval_minutes),
+            id="post_match_check",
+            max_instances=1,
+            coalesce=True,
+            replace_existing=True,
+        )
     return scheduler

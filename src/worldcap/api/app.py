@@ -97,12 +97,17 @@ def build_app(
             as_of=datetime.now(timezone.utc),
         )
 
+    # Coroutine-function wrappers for APScheduler. A bare `lambda: _trigger_refresh(...)`
+    # returns a coroutine that APScheduler doesn't await; using `async def` wrappers
+    # makes them proper coroutine functions that the scheduler invokes correctly.
+    async def _daily_refresh():
+        await _trigger_refresh("daily")
+
     @asynccontextmanager
     async def lifespan(app: FastAPI):
-        scheduler = build_scheduler(
-            refresh_fn=lambda: _trigger_refresh("daily"),
-            post_match_fn=lambda: _trigger_refresh("post_match"),
-        )
+        # Daily-only mode. To enable a post-match interval trigger, pass
+        # `post_match_fn=_some_async_fn` to build_scheduler() below.
+        scheduler = build_scheduler(refresh_fn=_daily_refresh)
         scheduler.start()
         try:
             yield
