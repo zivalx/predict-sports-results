@@ -59,6 +59,9 @@ EOF
 (The symlinks let the service WorkingDirectory at /opt/worldcap pick up the
 shipped repo without rewriting paths — the venv lives under /opt/worldcap/code/.venv.)
 
+worldcap depends on the `connectors` library via a git URL. `uv sync` pulls it automatically
+from GitHub — no separate checkout needed.
+
 Adjust the `ExecStart` path in the systemd unit if `.venv` lives elsewhere.
 
 ## 4. Environment file

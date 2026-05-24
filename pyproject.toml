@@ -17,7 +17,7 @@ dependencies = [
     "jinja2>=3.1.0",
     "anthropic>=0.40.0",
     "fastapi-mcp>=0.3.0",
-    "connectors[polymarket,gnews,reddit] @ file:///Users/ziv.a/repos_/collectors/collectors",
+    "connectors[polymarket,gnews,reddit] @ git+https://github.com/zivalx/collectors.git@87fc756c5eb6b95718ce06ab40a523efafb32636",
 ]
 
 [project.scripts]
@@ -49,3 +49,11 @@ testpaths = ["tests"]
 [tool.ruff]
 line-length = 100
 target-version = "py312"
+
+[tool.uv.sources]
+# Local dev convenience: when /Users/ziv.a/repos_/collectors/collectors exists,
+# uv uses the editable local checkout instead of the pinned git URL. This lets
+# the user iterate on `connectors` and `worldcap` simultaneously without
+# committing+pushing every change. Other machines just fall through to the
+# git URL in [project.dependencies].
+connectors = { path = "/Users/ziv.a/repos_/collectors/collectors", editable = true }
