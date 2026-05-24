@@ -129,3 +129,38 @@ non-watchlist players are implicitly ignored — a known v0 simplification).
 The digest now includes a "Golden Boot race" section ranking the top 10
 candidates with our probability, Polymarket's top-scorer market (when
 available), and the edge.
+
+## Plan 6: Dashboard, MCP, and deploy
+
+worldcap now ships with a lightweight HTMX web dashboard, an MCP server, and
+a Hetzner-VPS deploy recipe.
+
+### Dashboard
+
+When the service is running, browse the latest snapshot at:
+
+- `/` — home: top contenders + next matches + manual refresh
+- `/tournament` — full sortable outlook table
+- `/golden-boot` — Golden Boot race
+- `/match/<id>` — per-match drill-down with rationale + recent headlines
+
+### MCP
+
+The MCP server is mounted at `/mcp`. Agents like Claude or Navigator can call:
+
+- `get_tournament_outlook(top_n)` — top-N champion probabilities + edge
+- `get_match_forecast(home_team, away_team)` — per-match probs + rationale + headlines
+- `get_golden_boot_race(top_n)` — top-N players by P(top scorer)
+- `get_team_overview(team_name)` — team Elo, tournament probs, sentiment, headlines, upcoming matches
+
+All four are also reachable as plain HTTP GET endpoints under `/api/*` for
+non-MCP callers.
+
+### Deploy
+
+End-to-end Hetzner VPS deploy recipe lives under [`deploy/README.md`](deploy/README.md).
+TL;DR:
+
+    sudo cp deploy/worldcap.service /etc/systemd/system/
+    sudo cp deploy/env.production.example /opt/worldcap/.env  # then fill keys
+    sudo systemctl enable --now worldcap.service
