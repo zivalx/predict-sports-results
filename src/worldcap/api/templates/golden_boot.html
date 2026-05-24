@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}worldcap · Golden Boot race{% endblock %}
+{% block content %}
+<section>
+  <div class="section-header">
+    <h2>Golden Boot race — {{ competition_name }}</h2>
+  </div>
+
+  {% if rows %}
+  <table>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Player</th>
+        <th>Team</th>
+        <th>P(top scorer)</th>
+        <th>Expected goals</th>
+        <th>Polymarket</th>
+        <th>Edge</th>
+        <th>g/90</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in rows %}
+      <tr>
+        <td>{{ row.rank }}</td>
+        <td>{{ row.player_name }}</td>
+        <td>{{ row.team_name }}</td>
+        <td>{{ '%.1f' % (row.p_golden_boot * 100) }}%</td>
+        <td>{{ '%.2f' % row.expected_goals }}</td>
+        <td>{% if row.poly_p_top_scorer is not none %}{{ '%.1f' % (row.poly_p_top_scorer * 100) }}%{% else %}—{% endif %}</td>
+        <td class="{% if row.edge_vs_poly > 0 %}edge-positive{% elif row.edge_vs_poly < 0 %}edge-negative{% endif %}">
+          {% if row.poly_p_top_scorer is not none %}{{ '%+.1fpp' % (row.edge_vs_poly * 100) }}{% else %}—{% endif %}
+        </td>
+        <td>{{ '%.2f' % row.goals_per_90 }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p>No watchlist players or top-scorer forecast yet.</p>
+  {% endif %}
+</section>
+{% endblock %}

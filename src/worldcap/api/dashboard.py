@@ -20,7 +20,9 @@ from worldcap.models import (
     Match,
     MatchForecast,
     NewsItem,
+    Player,
     Team,
+    TopScorerForecast,
     TournamentForecast,
 )
 
@@ -422,4 +424,71 @@ async def match_detail(request: Request, match_id: int):
         request=request,
         name="match_detail.html",
         context=context,
+    )
+
+
+@dataclass
+class GoldenBootRow:
+    rank: int
+    player_name: str
+    team_name: str
+    p_golden_boot: float
+    expected_goals: float
+    poly_p_top_scorer: Optional[float]
+    edge_vs_poly: float
+    goals_per_90: float
+
+
+@router.get("/golden-boot", response_class=HTMLResponse)
+async def golden_boot(request: Request):
+    settings = get_settings()
+    async with get_session() as session:
+        comp = (await session.execute(
+            select(Competition).where(Competition.code == settings.db_competition_code)
+        )).scalar_one_or_none()
+        if comp is None:
+            return request.app.state.templates.TemplateResponse(
+                request=request,
+                name="golden_boot.html",
+                context={"request": request, "rows": [], "competition_name": "(unseeded)"},
+            )
+
+        snap = (await session.execute(
+            select(ForecastSnapshot)
+            .where(ForecastSnapshot.competition_id == comp.id)
+            .order_by(ForecastSnapshot.snapshot_date.desc())
+        )).scalars().first()
+
+        if snap is None:
+            return request.app.state.templates.TemplateResponse(
+                request=request,
+                name="golden_boot.html",
+                context={"request": request, "rows": [], "competition_name": comp.name},
+            )
+
+        rows_raw = (await session.execute(
+            select(TopScorerForecast, Player, Team)
+            .join(Player, TopScorerForecast.player_id == Player.id)
+            .join(Team, Player.team_id == Team.id)
+            .where(TopScorerForecast.snapshot_id == snap.id)
+            .order_by(TopScorerForecast.p_golden_boot.desc())
+        )).all()
+        rows = [
+            GoldenBootRow(
+                rank=i,
+                player_name=player.name,
+                team_name=team.name,
+                p_golden_boot=tsf.p_golden_boot,
+                expected_goals=tsf.expected_goals,
+                poly_p_top_scorer=tsf.poly_p_top_scorer,
+                edge_vs_poly=tsf.edge_vs_poly,
+                goals_per_90=player.goals_per_90,
+            )
+            for i, (tsf, player, team) in enumerate(rows_raw, 1)
+        ]
+
+    return request.app.state.templates.TemplateResponse(
+        request=request,
+        name="golden_boot.html",
+        context={"request": request, "rows": [row.__dict__ for row in rows], "competition_name": comp.name},
     )
