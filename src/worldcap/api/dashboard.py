@@ -192,3 +192,107 @@ async def home(request: Request):
         name="home.html",
         context=context,
     )
+
+
+@dataclass
+class TournamentRow:
+    rank: int
+    team_name: str
+    p_champion: float
+    p_runner_up: float
+    p_semi: float
+    p_top_group: float
+    poly_p_champion: float
+    edge_vs_poly: float
+
+
+_ALLOWED_SORT_KEYS = {
+    "p_champion",
+    "p_runner_up",
+    "p_semi",
+    "p_top_group",
+    "edge_vs_poly",
+}
+
+
+@router.get("/tournament", response_class=HTMLResponse)
+async def tournament(request: Request, order_by: str = "p_champion"):
+    if order_by not in _ALLOWED_SORT_KEYS:
+        order_by = "p_champion"
+
+    settings = get_settings()
+    async with get_session() as session:
+        comp = (await session.execute(
+            select(Competition).where(Competition.code == settings.db_competition_code)
+        )).scalar_one_or_none()
+        if comp is None:
+            context = {
+                "request": request,
+                "rows": [],
+                "order_by": order_by,
+                "competition_name": "(unseeded)",
+            }
+            return request.app.state.templates.TemplateResponse(
+                request=request,
+                name="tournament.html",
+                context=context,
+            )
+
+        snap = (await session.execute(
+            select(ForecastSnapshot)
+            .where(ForecastSnapshot.competition_id == comp.id)
+            .order_by(ForecastSnapshot.snapshot_date.desc())
+        )).scalars().first()
+
+        if snap is None:
+            context = {
+                "request": request,
+                "rows": [],
+                "order_by": order_by,
+                "competition_name": comp.name,
+            }
+            return request.app.state.templates.TemplateResponse(
+                request=request,
+                name="tournament.html",
+                context=context,
+            )
+
+        forecasts = (await session.execute(
+            select(TournamentForecast).where(TournamentForecast.snapshot_id == snap.id)
+        )).scalars().all()
+        teams_by_id = {t.id: t for t in (await session.execute(select(Team))).scalars().all()}
+
+        # Sort in Python (small N) so we can sort by edge_vs_poly easily
+        getter = {
+            "p_champion": lambda f: f.p_champion,
+            "p_runner_up": lambda f: f.p_runner_up,
+            "p_semi": lambda f: f.p_semi,
+            "p_top_group": lambda f: f.p_top_group,
+            "edge_vs_poly": lambda f: f.edge_vs_poly,
+        }[order_by]
+        sorted_fcs = sorted(forecasts, key=getter, reverse=True)
+        rows = [
+            TournamentRow(
+                rank=i,
+                team_name=teams_by_id[f.team_id].name if f.team_id in teams_by_id else f"team-{f.team_id}",
+                p_champion=f.p_champion,
+                p_runner_up=f.p_runner_up,
+                p_semi=f.p_semi,
+                p_top_group=f.p_top_group,
+                poly_p_champion=f.poly_p_champion or 0.0,
+                edge_vs_poly=f.edge_vs_poly,
+            )
+            for i, f in enumerate(sorted_fcs, 1)
+        ]
+
+        context = {
+            "request": request,
+            "rows": [row.__dict__ for row in rows],
+            "order_by": order_by,
+            "competition_name": comp.name,
+        }
+        return request.app.state.templates.TemplateResponse(
+            request=request,
+            name="tournament.html",
+            context=context,
+        )
