@@ -407,7 +407,7 @@ wheels = [
 [[package]]
 name = "connectors"
 version = "0.1.0"
-source = { directory = "/Users/ziv.a/repos_/collectors/collectors" }
+source = { editable = "/Users/ziv.a/repos_/collectors/collectors" }
 dependencies = [
     { name = "httpx" },
     { name = "pydantic" },
@@ -2219,7 +2219,7 @@ requires-dist = [
     { name = "alembic", specifier = ">=1.14.0" },
     { name = "anthropic", specifier = ">=0.40.0" },
     { name = "apscheduler", specifier = ">=3.10.0" },
-    { name = "connectors", extras = ["polymarket", "gnews", "reddit"], directory = "/Users/ziv.a/repos_/collectors/collectors" },
+    { name = "connectors", extras = ["polymarket", "gnews", "reddit"], editable = "/Users/ziv.a/repos_/collectors/collectors" },
     { name = "fastapi", specifier = ">=0.115.0" },
     { name = "fastapi-mcp", specifier = ">=0.3.0" },
     { name = "greenlet", specifier = ">=3.0.0" },
