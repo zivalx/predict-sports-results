@@ -1,6 +1,6 @@
-# worldcap on Windows — daily refresh + push to Cloudflare Pages
+# worldcup on Windows — daily refresh + push to Cloudflare Pages
 
-End-to-end recipe for running worldcap on a personal Windows PC, with the
+End-to-end recipe for running worldcup on a personal Windows PC, with the
 public dashboard served from `worldcup.zivalx.com` via Cloudflare Pages.
 
 Architecture: the Python pipeline runs locally on your PC via Windows Task
@@ -31,20 +31,20 @@ In PowerShell:
 cd $HOME
 mkdir repos
 cd repos
-git clone <your-worldcap-repo-url> worldcap
+git clone <your-worldcup-repo-url> worldcup
 git clone <github.com/zivalx/collectors-or-whatever-the-url-is> collectors  # only needed if you want to edit connectors locally
 ```
 
-(The `collectors` clone is optional — worldcap pulls it from github.com/zivalx/collectors via `uv sync`. Cloning locally enables the `[tool.uv.sources]` override for editable development. Skip if you don't plan to modify the connectors library.)
+(The `collectors` clone is optional — worldcup pulls it from github.com/zivalx/collectors via `uv sync`. Cloning locally enables the `[tool.uv.sources]` override for editable development. Skip if you don't plan to modify the connectors library.)
 
 ## 2. Install dependencies
 
 ```powershell
-cd $HOME\repos\worldcap
+cd $HOME\repos\worldcup
 uv sync --all-extras
 ```
 
-This installs Python deps + the `worldcap` CLI entry point.
+This installs Python deps + the `worldcup` CLI entry point.
 
 ## 3. Configure `.env`
 
@@ -71,7 +71,7 @@ uv run python scripts/seed_competition.py
 ## 5. First manual refresh
 
 ```powershell
-uv run worldcap refresh
+uv run worldcup refresh
 ```
 
 This hits the real APIs and populates the DB. Watch for `forecast.per_match forecasts_written=72` (or similar) — that confirms predictions for all group-stage matches were generated.
@@ -79,7 +79,7 @@ This hits the real APIs and populates the DB. Watch for `forecast.per_match fore
 ## 6. Inspect the dashboard locally
 
 ```powershell
-uv run worldcap serve --port 8765
+uv run worldcup serve --port 8765
 ```
 
 Open http://localhost:8765 in a browser. You should see the dashboard with real forecasts for World Cup 2026.
@@ -88,19 +88,19 @@ Press Ctrl-C in PowerShell to stop the server.
 
 ## 7. Set up Cloudflare Pages (one-time)
 
-1. Create a new empty private GitHub repo for the rendered HTML, e.g. `worldcap-static`:
+1. Create a new empty private GitHub repo for the rendered HTML, e.g. `worldcup-static`:
    ```powershell
-   gh repo create worldcap-static --private --description "Static dashboard for worldcap"
+   gh repo create worldcup-static --private --description "Static dashboard for worldcup"
    ```
-2. In Cloudflare dashboard → Pages → Create project → Connect to Git → select `worldcap-static`, branch `main`.
+2. In Cloudflare dashboard → Pages → Create project → Connect to Git → select `worldcup-static`, branch `main`.
 3. Build settings: leave the build command **empty**, output directory `/`. We push pre-rendered HTML; no build needed.
 4. After the first (empty) deploy, attach custom domain `worldcup.zivalx.com` in Pages settings.
 
 ## 8. Test the static-export → CF Pages flow once
 
 ```powershell
-$env:STATIC_REPO = "git@github.com:YOUR_GH_USERNAME/worldcap-static.git"
-$env:WORLDCAP_BASE_URL = "https://worldcup.zivalx.com"
+$env:STATIC_REPO = "git@github.com:YOUR_GH_USERNAME/worldcup-static.git"
+$env:WORLDCUP_BASE_URL = "https://worldcup.zivalx.com"
 
 .\deploy\windows\refresh.ps1
 ```
@@ -108,7 +108,7 @@ $env:WORLDCAP_BASE_URL = "https://worldcup.zivalx.com"
 This runs the whole flow: refresh → export → push. Watch the log:
 
 ```powershell
-Get-Content -Tail 100 -Wait $env:USERPROFILE\worldcap-refresh.log
+Get-Content -Tail 100 -Wait $env:USERPROFILE\worldcup-refresh.log
 ```
 
 If push succeeds, visit `worldcup.zivalx.com` in ~30 seconds — should show the dashboard.
@@ -116,36 +116,36 @@ If push succeeds, visit `worldcup.zivalx.com` in ~30 seconds — should show the
 ## 9. Schedule it daily
 
 ```powershell
-cd $HOME\repos\worldcap
+cd $HOME\repos\worldcup
 .\deploy\windows\Register-Task.ps1 `
-    -WorldcapDir "$HOME\repos\worldcap" `
-    -StaticRepo "git@github.com:YOUR_GH_USERNAME/worldcap-static.git" `
+    -WorldcupDir "$HOME\repos\worldcup" `
+    -StaticRepo "git@github.com:YOUR_GH_USERNAME/worldcup-static.git" `
     -BaseUrl "https://worldcup.zivalx.com" `
     -DailyTimeUtc "09:00"
 ```
 
 Because Task Scheduler doesn't support direct environment-variable injection at
-the task level, configure `STATIC_REPO` and `WORLDCAP_BASE_URL` as persistent
+the task level, configure `STATIC_REPO` and `WORLDCUP_BASE_URL` as persistent
 user environment variables (Win+R → `sysdm.cpl` → Advanced → Environment
 Variables → User variables), **or** edit the defaults at the top of
 `refresh.ps1` directly.
 
 Confirm:
 ```powershell
-Get-ScheduledTaskInfo -TaskName 'worldcap-daily'
+Get-ScheduledTaskInfo -TaskName 'worldcup-daily'
 ```
 
 Trigger an immediate test:
 ```powershell
-Start-ScheduledTask -TaskName 'worldcap-daily'
+Start-ScheduledTask -TaskName 'worldcup-daily'
 ```
 
 Watch the log file:
 ```powershell
-Get-Content -Tail 100 -Wait $env:USERPROFILE\worldcap-refresh.log
+Get-Content -Tail 100 -Wait $env:USERPROFILE\worldcup-refresh.log
 ```
 
-You should see a full refresh log ending with "worldcap daily refresh done".
+You should see a full refresh log ending with "worldcup daily refresh done".
 
 ## 10. Verify it'll run unattended
 
@@ -164,7 +164,7 @@ Once set up, every day at 09:00 UTC (or whatever you chose):
 You only intervene if:
 - An API key expires (rotate it, edit `.env`)
 - A new connectors version is released (bump the SHA in `pyproject.toml`)
-- Something breaks (check `~\worldcap-refresh.log`)
+- Something breaks (check `~\worldcup-refresh.log`)
 
 ## Troubleshooting
 
@@ -175,10 +175,10 @@ You only intervene if:
 | Git push fails with auth error | Git Credential Manager not set up for the GitHub repo | Run `gh auth login` once interactively |
 | `forecasts_written=0` | football-data.org returning unexpected status values | Already handled by `_STATUS_MAP` in ingest/sports_data.py; if still 0, post the log |
 | Polymarket SSL errors | Some networks intercept HTTPS with corporate certs | Run from a different network OR see deploy/cloudflare-tunnel.md for workarounds |
-| `~\worldcap-refresh.log` not appearing | Permissions issue or Task Scheduler running as different user | Check Task Properties → "Run as" matches your username |
+| `~\worldcup-refresh.log` not appearing | Permissions issue or Task Scheduler running as different user | Check Task Properties → "Run as" matches your username |
 
 ## (Optional) Cloudflare Tunnel for private MCP access
 
-If you want your friends' Claude agents to query worldcap, follow
+If you want your friends' Claude agents to query worldcup, follow
 `deploy/cloudflare-tunnel.md` — `cloudflared` has a Windows installer.
 Run it as a Windows service alongside the Task Scheduler refresh job.

@@ -3,7 +3,7 @@ from collections import Counter
 
 import pytest
 
-from worldcap.model.simulator.score_sampling import sample_outcome, sample_score
+from worldcup.model.simulator.score_sampling import sample_outcome, sample_score
 
 
 def test_sample_outcome_returns_one_of_three():

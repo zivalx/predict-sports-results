@@ -1,6 +1,6 @@
 import pytest
 
-from worldcap.model.elo import (
+from worldcup.model.elo import (
     INITIAL_RATING,
     K_BASE,
     expected_score,

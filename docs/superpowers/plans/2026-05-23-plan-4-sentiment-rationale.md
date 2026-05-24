@@ -1,4 +1,4 @@
-# worldcap — Plan 4: News/Reddit ingest + sentiment + Claude rationales
+# worldcup — Plan 4: News/Reddit ingest + sentiment + Claude rationales
 
 > **For agentic workers:** REQUIRED SUB-SKILL: superpowers:subagent-driven-development.
 
@@ -79,7 +79,7 @@ Both `NewsItem.url` and `SocialPost.url` are unique to make ingest idempotent.
 ## File structure
 
 ```
-src/worldcap/
+src/worldcup/
 ├── models/
 │   ├── content.py             # NEW — NewsItem, SocialPost, SentimentScore
 │   └── forecast.py            # add MatchForecast.rationale_md

@@ -1,6 +1,6 @@
 import pytest
 
-from worldcap.model.match import blend_with_market, match_probabilities
+from worldcup.model.match import blend_with_market, match_probabilities
 
 
 def _normalised(d: dict[str, float]) -> bool:

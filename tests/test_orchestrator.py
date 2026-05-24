@@ -3,7 +3,7 @@ from dataclasses import dataclass
 
 import pytest
 
-from worldcap.model.simulator.orchestrator import SimulationResult, simulate_tournament
+from worldcup.model.simulator.orchestrator import SimulationResult, simulate_tournament
 
 
 @dataclass(frozen=True)

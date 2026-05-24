@@ -1,4 +1,4 @@
-# worldcap — Plan 3: Monte Carlo tournament simulator
+# worldcup — Plan 3: Monte Carlo tournament simulator
 
 > **For agentic workers:** REQUIRED SUB-SKILL: superpowers:subagent-driven-development.
 
@@ -68,7 +68,7 @@ For Plan 3 v0 we implement 1–3 and 8 (lots, deterministic from RNG). 4–6 (he
 ## File structure created in this plan
 
 ```
-src/worldcap/
+src/worldcup/
 ├── models/
 │   ├── tournament.py        # add Match.bracket_slot
 │   └── forecast.py          # add ForecastSnapshot.model_state_hash

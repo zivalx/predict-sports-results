@@ -3,10 +3,10 @@ from datetime import datetime, timezone
 import pytest
 from sqlmodel import select
 
-from worldcap.db import get_session, init_db
-from worldcap.model.naive import generate_naive_forecast
-from worldcap.models import ForecastSnapshot, OddsSnapshot, Team, TournamentForecast
-from worldcap.models.tournament import Competition
+from worldcup.db import get_session, init_db
+from worldcup.model.naive import generate_naive_forecast
+from worldcup.models import ForecastSnapshot, OddsSnapshot, Team, TournamentForecast
+from worldcup.models.tournament import Competition
 from scripts.seed_competition import seed
 
 

@@ -2,7 +2,7 @@ import httpx
 import pytest
 import respx
 
-from worldcap.ingest.sports_data import (
+from worldcup.ingest.sports_data import (
     FootballDataClient,
     TeamDTO,
     FixtureDTO,

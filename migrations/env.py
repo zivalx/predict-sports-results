@@ -6,8 +6,8 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 from sqlalchemy.pool import NullPool
 from sqlmodel import SQLModel
 
-import worldcap.models  # noqa: F401  ensures models are imported for autogenerate
-from worldcap.config import get_settings
+import worldcup.models  # noqa: F401  ensures models are imported for autogenerate
+from worldcup.config import get_settings
 
 config = context.config
 if config.config_file_name:

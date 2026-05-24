@@ -1,8 +1,8 @@
 import pytest
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
-from worldcap.config import get_settings
-from worldcap.jobs.scheduler import build_scheduler
+from worldcup.config import get_settings
+from worldcup.jobs.scheduler import build_scheduler
 
 
 def test_build_scheduler_registers_daily_only_by_default(monkeypatch):

@@ -5,9 +5,9 @@ from datetime import datetime, timezone
 
 from sqlmodel import select
 
-from worldcap.config import get_settings
-from worldcap.db import get_session
-from worldcap.models import Competition, TournamentFormat
+from worldcup.config import get_settings
+from worldcup.db import get_session
+from worldcup.models import Competition, TournamentFormat
 
 
 WC2026_FORMAT = TournamentFormat(

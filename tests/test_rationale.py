@@ -3,9 +3,9 @@ from datetime import datetime, timezone
 import pytest
 from sqlmodel import select
 
-from worldcap.db import get_session, init_db
-from worldcap.enrich.claude_client import FakeClaudeClient
-from worldcap.models import (
+from worldcup.db import get_session, init_db
+from worldcup.enrich.claude_client import FakeClaudeClient
+from worldcup.models import (
     ForecastSnapshot,
     MatchForecast,
     NewsItem,
@@ -13,9 +13,9 @@ from worldcap.models import (
     Team,
     TeamRating,
 )
-from worldcap.models.tournament import Competition, Match
-from worldcap.rationale.match import generate_rationale_for_match
-from worldcap.rationale.prompts import MatchPromptContext, build_match_rationale_prompt
+from worldcup.models.tournament import Competition, Match
+from worldcup.rationale.match import generate_rationale_for_match
+from worldcup.rationale.prompts import MatchPromptContext, build_match_rationale_prompt
 from scripts.seed_competition import seed
 
 

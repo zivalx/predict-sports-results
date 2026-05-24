@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-from worldcap.api.app import build_app
+from worldcup.api.app import build_app
 
 
 @pytest.mark.asyncio

@@ -13,10 +13,10 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from sqlmodel import select
 
-from worldcap.db import get_session, init_db
-from worldcap.enrich.claude_client import FakeClaudeClient
-from worldcap.enrich.sentiment import score_unscored_items
-from worldcap.models import (
+from worldcup.db import get_session, init_db
+from worldcup.enrich.claude_client import FakeClaudeClient
+from worldcup.enrich.sentiment import score_unscored_items
+from worldcup.models import (
     ForecastSnapshot,
     MatchForecast,
     NewsItem,
@@ -25,8 +25,8 @@ from worldcap.models import (
     Team,
     TeamRating,
 )
-from worldcap.models.tournament import Competition, Match
-from worldcap.rationale.match import generate_rationale_for_match
+from worldcup.models.tournament import Competition, Match
+from worldcup.rationale.match import generate_rationale_for_match
 from scripts.seed_competition import seed
 
 
@@ -221,7 +221,7 @@ GROUP_LABELS = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L"]
 
 
 def _build_full_wc_fixtures():
-    from worldcap.ingest.sports_data import FixtureDTO, TeamDTO
+    from worldcup.ingest.sports_data import FixtureDTO, TeamDTO
 
     teams = []
     for gi, label in enumerate(GROUP_LABELS):
@@ -256,8 +256,8 @@ def _build_full_wc_fixtures():
 async def test_run_refresh_survives_erroring_claude_client(
 ):
     """Even when all Claude calls fail, the pipeline completes and returns a ForecastSnapshot."""
-    from worldcap.jobs.refresh import run_refresh
-    from worldcap.models import ForecastSnapshot
+    from worldcup.jobs.refresh import run_refresh
+    from worldcup.models import ForecastSnapshot
     import httpx
 
     await init_db()

@@ -3,8 +3,8 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-from worldcap.api.app import build_app
-from worldcap.db import init_db
+from worldcup.api.app import build_app
+from worldcup.db import init_db
 from scripts.seed_competition import seed
 
 

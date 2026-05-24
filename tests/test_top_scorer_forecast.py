@@ -4,17 +4,17 @@ from itertools import combinations
 import pytest
 from sqlmodel import select
 
-from worldcap.db import get_session, init_db
-from worldcap.model.simulated_forecast import generate_simulated_forecast
-from worldcap.model.top_scorer_forecast import generate_top_scorer_forecast
-from worldcap.models import (
+from worldcup.db import get_session, init_db
+from worldcup.model.simulated_forecast import generate_simulated_forecast
+from worldcup.model.top_scorer_forecast import generate_top_scorer_forecast
+from worldcup.models import (
     OddsSnapshot,
     Player,
     Team,
     TeamRating,
     TopScorerForecast,
 )
-from worldcap.models.tournament import Competition, Match
+from worldcup.models.tournament import Competition, Match
 from scripts.seed_competition import seed
 
 

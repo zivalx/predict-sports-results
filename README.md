@@ -1,6 +1,6 @@
-# worldcap
+# worldcup
 
-World Cup 2026 pre-match forecast feed. See `docs/specs/2026-05-21-worldcap-design.md`.
+World Cup 2026 pre-match forecast feed. See `docs/specs/2026-05-21-worldcup-design.md`.
 
 ## Quick start
 
@@ -8,11 +8,11 @@ World Cup 2026 pre-match forecast feed. See `docs/specs/2026-05-21-worldcap-desi
     cp .env.example .env  # fill in FOOTBALL_DATA_API_KEY
     uv run alembic upgrade head
     uv run python scripts/seed_competition.py
-    uv run uvicorn worldcap.api.app:app --reload
+    uv run uvicorn worldcup.api.app:app --reload
 
-## Working on `connectors` alongside worldcap
+## Working on `connectors` alongside worldcup
 
-worldcap depends on the `connectors` library (https://github.com/zivalx/collectors)
+worldcup depends on the `connectors` library (https://github.com/zivalx/collectors)
 via a pinned git URL. For day-to-day development, `pyproject.toml`'s
 `[tool.uv.sources]` overrides this with a local editable path
 (`/Users/ziv.a/repos_/collectors/collectors`) so you can iterate on both
@@ -30,10 +30,10 @@ To bump the pinned connectors version:
 
 ## Smoke run
 
-    rm -f worldcap.db
+    rm -f worldcup.db
     uv run alembic upgrade head
     uv run python scripts/seed_competition.py
-    uv run uvicorn worldcap.api.app:app --port 8765
+    uv run uvicorn worldcup.api.app:app --port 8765
     # in another shell:
     curl -s http://localhost:8765/healthz
     curl -s -X POST http://localhost:8765/refresh
@@ -78,7 +78,7 @@ the cup, reaching the semifinal, topping the group, etc. The digest's
 "Tournament outlook" table now shows these model-derived numbers; the `Edge`
 column shows where our model diverges from Polymarket's outright winner market.
 
-The simulator is deterministic under a seed — set `WORLDCAP_SIMULATOR_SEED` if
+The simulator is deterministic under a seed — set `WORLDCUP_SIMULATOR_SEED` if
 you need reproducible runs (not currently wired through; pass `seed=` directly
 to `generate_simulated_forecast` for now).
 
@@ -115,7 +115,7 @@ logs and stops cleanly.
 | `GNEWS_API_KEY` | — | GNews API key |
 | `REDDIT_CLIENT_ID` | — | Reddit API client ID |
 | `REDDIT_CLIENT_SECRET` | — | Reddit API client secret |
-| `REDDIT_USER_AGENT` | `worldcap/0.1` | Reddit API user agent |
+| `REDDIT_USER_AGENT` | `worldcup/0.1` | Reddit API user agent |
 | `SENTIMENT_MODEL` | `claude-haiku-4-5` | Model used for batch sentiment |
 | `RATIONALE_MODEL` | `claude-sonnet-4-5` | Model used for per-match rationale |
 | `RATIONALE_TOKEN_BUDGET` | `100000` | Per-refresh cap on rationale tokens |
@@ -150,7 +150,7 @@ available), and the edge.
 
 ## Plan 6: Dashboard, MCP, and deploy
 
-worldcap now ships with a lightweight HTMX web dashboard, an MCP server, and
+worldcup now ships with a lightweight HTMX web dashboard, an MCP server, and
 a Hetzner-VPS deploy recipe.
 
 ### Dashboard
@@ -194,6 +194,6 @@ macOS and Windows.
 
 **Hetzner TL;DR:**
 
-    sudo cp deploy/worldcap.service /etc/systemd/system/
-    sudo cp deploy/env.production.example /opt/worldcap/.env  # then fill keys
-    sudo systemctl enable --now worldcap.service
+    sudo cp deploy/worldcup.service /etc/systemd/system/
+    sudo cp deploy/env.production.example /opt/worldcup/.env  # then fill keys
+    sudo systemctl enable --now worldcup.service

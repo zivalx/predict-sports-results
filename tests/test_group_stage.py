@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 import pytest
 
-from worldcap.model.simulator.group_stage import simulate_group
+from worldcup.model.simulator.group_stage import simulate_group
 
 
 @dataclass(frozen=True)

@@ -3,7 +3,7 @@ from dataclasses import dataclass
 
 import pytest
 
-from worldcap.model.simulator.tiebreakers import GroupMatch, resolve_standings
+from worldcup.model.simulator.tiebreakers import GroupMatch, resolve_standings
 
 
 @dataclass(frozen=True)

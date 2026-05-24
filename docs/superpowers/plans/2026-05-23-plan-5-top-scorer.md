@@ -1,4 +1,4 @@
-# worldcap — Plan 5: Top-scorer (Golden Boot) model
+# worldcup — Plan 5: Top-scorer (Golden Boot) model
 
 > **For agentic workers:** REQUIRED SUB-SKILL: superpowers:subagent-driven-development.
 
@@ -63,7 +63,7 @@ TopScorerForecast
 ## File structure
 
 ```
-src/worldcap/
+src/worldcup/
 ├── models/
 │   ├── players.py             # NEW — Player
 │   └── forecast.py            # add TopScorerForecast

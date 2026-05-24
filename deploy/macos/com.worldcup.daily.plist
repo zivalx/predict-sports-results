@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.worldcup.daily</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>--login</string>
+    <string>-c</string>
+    <string>$HOME/repos_/worldcup/deploy/macos/refresh.sh</string>
+  </array>
+
+  <!-- 09:00 UTC daily. Adjust if you want a different local time. -->
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Hour</key>
+    <integer>9</integer>
+    <key>Minute</key>
+    <integer>0</integer>
+  </dict>
+
+  <!-- If the Mac was asleep at the scheduled time, run the job ASAP after wake. -->
+  <key>StartCalendarIntervalRunAtLoadMissed</key>
+  <true/>
+
+  <key>StandardOutPath</key>
+  <string>/tmp/worldcup-refresh.stdout.log</string>
+  <key>StandardErrorPath</key>
+  <string>/tmp/worldcup-refresh.stderr.log</string>
+</dict>
+</plist>

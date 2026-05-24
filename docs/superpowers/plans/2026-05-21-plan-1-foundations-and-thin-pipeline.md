@@ -1,8 +1,8 @@
-# worldcap — Plan 1: Foundations + thin end-to-end pipeline
+# worldcup — Plan 1: Foundations + thin end-to-end pipeline
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Stand up the worldcap service end-to-end with the thinnest possible pipeline: ingest WC 2026 fixtures + Polymarket outright-winner odds, persist a `ForecastSnapshot` using Polymarket-as-forecast, render a Markdown digest in pre-tournament mode, expose a manual refresh endpoint, and run the pipeline daily via APScheduler.
+**Goal:** Stand up the worldcup service end-to-end with the thinnest possible pipeline: ingest WC 2026 fixtures + Polymarket outright-winner odds, persist a `ForecastSnapshot` using Polymarket-as-forecast, render a Markdown digest in pre-tournament mode, expose a manual refresh endpoint, and run the pipeline daily via APScheduler.
 
 **Architecture:** Single Python 3.12 process. FastAPI + APScheduler in one event loop. SQLModel over async SQLite (`aiosqlite`). Alembic for migrations. The local `connectors` package handles Polymarket. Jinja2 renders the digest. No model, no simulator, no sentiment, no rationale generation in this plan — those land in Plans 2–5.
 
@@ -21,7 +21,7 @@
 ## File structure created in this plan
 
 ```
-worldcap/
+worldcup/
 ├── .env.example
 ├── .gitignore
 ├── README.md
@@ -35,7 +35,7 @@ worldcap/
 │       └── 0002_forecast_snapshots.py
 ├── scripts/
 │   └── seed_competition.py
-├── src/worldcap/
+├── src/worldcup/
 │   ├── __init__.py
 │   ├── config.py
 │   ├── db.py
@@ -92,7 +92,7 @@ The `connectors` package is consumed as an editable local install from `/Users/z
 - Create: `.gitignore`
 - Create: `.env.example`
 - Create: `README.md`
-- Create: `src/worldcap/__init__.py`
+- Create: `src/worldcup/__init__.py`
 - Create: `tests/__init__.py`
 - Create: `tests/conftest.py`
 
@@ -100,7 +100,7 @@ The `connectors` package is consumed as an editable local install from `/Users/z
 
 ```toml
 [project]
-name = "worldcap"
+name = "worldcup"
 version = "0.1.0"
 description = "World Cup 2026 pre-match forecast feed"
 requires-python = ">=3.12"
@@ -133,7 +133,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/worldcap"]
+packages = ["src/worldcup"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
@@ -165,7 +165,7 @@ htmlcov/
 
 ```bash
 # Database
-DATABASE_URL=sqlite+aiosqlite:///./worldcap.db
+DATABASE_URL=sqlite+aiosqlite:///./worldcup.db
 
 # football-data.org API key — register at https://www.football-data.org/client/register
 FOOTBALL_DATA_API_KEY=
@@ -184,9 +184,9 @@ LOG_LEVEL=INFO
 - [ ] **Step 4: Write minimal `README.md`**
 
 ```markdown
-# worldcap
+# worldcup
 
-World Cup 2026 pre-match forecast feed. See `docs/specs/2026-05-21-worldcap-design.md`.
+World Cup 2026 pre-match forecast feed. See `docs/specs/2026-05-21-worldcup-design.md`.
 
 ## Quick start
 
@@ -194,14 +194,14 @@ World Cup 2026 pre-match forecast feed. See `docs/specs/2026-05-21-worldcap-desi
     cp .env.example .env  # fill in FOOTBALL_DATA_API_KEY
     uv run alembic upgrade head
     uv run python scripts/seed_competition.py
-    uv run uvicorn worldcap.api.app:app --reload
+    uv run uvicorn worldcup.api.app:app --reload
 ```
 
 - [ ] **Step 5: Create empty package files**
 
 ```bash
-mkdir -p src/worldcap tests
-touch src/worldcap/__init__.py tests/__init__.py
+mkdir -p src/worldcup tests
+touch src/worldcup/__init__.py tests/__init__.py
 ```
 
 - [ ] **Step 6: Write `tests/conftest.py`**
@@ -217,7 +217,7 @@ import pytest
 @pytest.fixture(autouse=True)
 def _isolated_env(tmp_path, monkeypatch):
     """Each test gets its own SQLite file and output dir."""
-    db_path = tmp_path / "worldcap.db"
+    db_path = tmp_path / "worldcup.db"
     output_dir = tmp_path / "output"
     output_dir.mkdir()
     monkeypatch.setenv("DATABASE_URL", f"sqlite+aiosqlite:///{db_path}")
@@ -250,7 +250,7 @@ git commit -m "chore: repo scaffolding + dependencies"
 ## Task 2: Config module
 
 **Files:**
-- Create: `src/worldcap/config.py`
+- Create: `src/worldcup/config.py`
 - Create: `tests/test_config.py`
 
 - [ ] **Step 1: Write failing test**
@@ -258,7 +258,7 @@ git commit -m "chore: repo scaffolding + dependencies"
 `tests/test_config.py`:
 
 ```python
-from worldcap.config import get_settings
+from worldcup.config import get_settings
 
 
 def test_settings_load_from_env(monkeypatch):
@@ -281,9 +281,9 @@ def test_settings_defaults(monkeypatch):
 - [ ] **Step 2: Run test (expect failure)**
 
 Run: `uv run pytest tests/test_config.py -v`
-Expected: `ModuleNotFoundError: No module named 'worldcap.config'`.
+Expected: `ModuleNotFoundError: No module named 'worldcup.config'`.
 
-- [ ] **Step 3: Implement `src/worldcap/config.py`**
+- [ ] **Step 3: Implement `src/worldcup/config.py`**
 
 ```python
 from functools import lru_cache
@@ -295,7 +295,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
-    database_url: str = "sqlite+aiosqlite:///./worldcap.db"
+    database_url: str = "sqlite+aiosqlite:///./worldcup.db"
     football_data_api_key: str = ""
     digest_output_dir: Path = Path("./output")
     whatsapp_pickup_path: Path = Path("./output/latest.md")
@@ -319,7 +319,7 @@ Expected: 2 passed.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/worldcap/config.py tests/test_config.py
+git add src/worldcup/config.py tests/test_config.py
 git commit -m "feat: config module with pydantic-settings"
 ```
 
@@ -328,11 +328,11 @@ git commit -m "feat: config module with pydantic-settings"
 ## Task 3: Logging + database setup
 
 **Files:**
-- Create: `src/worldcap/log.py`
-- Create: `src/worldcap/db.py`
+- Create: `src/worldcup/log.py`
+- Create: `src/worldcup/db.py`
 - Create: `tests/test_db.py`
 
-- [ ] **Step 1: Write `src/worldcap/log.py`**
+- [ ] **Step 1: Write `src/worldcup/log.py`**
 
 ```python
 import logging
@@ -340,7 +340,7 @@ import sys
 
 import structlog
 
-from worldcap.config import get_settings
+from worldcup.config import get_settings
 
 
 def configure_logging() -> None:
@@ -368,14 +368,14 @@ def get_logger(name: str) -> structlog.BoundLogger:
 import pytest
 from sqlmodel import SQLModel
 
-from worldcap.db import create_engine_, get_session, init_db
+from worldcup.db import create_engine_, get_session, init_db
 
 
 @pytest.mark.asyncio
 async def test_init_db_creates_tables(tmp_path, monkeypatch):
     db_file = tmp_path / "x.db"
     monkeypatch.setenv("DATABASE_URL", f"sqlite+aiosqlite:///{db_file}")
-    from worldcap.config import get_settings
+    from worldcup.config import get_settings
     get_settings.cache_clear()
 
     await init_db()
@@ -394,9 +394,9 @@ async def test_get_session_yields_usable_session():
 - [ ] **Step 3: Run test (expect failure)**
 
 Run: `uv run pytest tests/test_db.py -v`
-Expected: `ModuleNotFoundError: No module named 'worldcap.db'`.
+Expected: `ModuleNotFoundError: No module named 'worldcup.db'`.
 
-- [ ] **Step 4: Implement `src/worldcap/db.py`**
+- [ ] **Step 4: Implement `src/worldcup/db.py`**
 
 ```python
 from contextlib import asynccontextmanager
@@ -405,7 +405,7 @@ from functools import lru_cache
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlmodel import SQLModel
 
-from worldcap.config import get_settings
+from worldcup.config import get_settings
 
 
 @lru_cache
@@ -446,8 +446,8 @@ Replace the top of each test with the cache reset. Final file:
 import pytest
 from sqlalchemy import text
 
-from worldcap.config import get_settings
-from worldcap.db import get_session, init_db, reset_engine_cache
+from worldcup.config import get_settings
+from worldcup.db import get_session, init_db, reset_engine_cache
 
 
 @pytest.mark.asyncio
@@ -479,7 +479,7 @@ Expected: 2 passed.
 - [ ] **Step 7: Commit**
 
 ```bash
-git add src/worldcap/log.py src/worldcap/db.py tests/test_db.py
+git add src/worldcup/log.py src/worldcup/db.py tests/test_db.py
 git commit -m "feat: db + logging foundations"
 ```
 
@@ -488,10 +488,10 @@ git commit -m "feat: db + logging foundations"
 ## Task 4: Domain models — tournament structure
 
 **Files:**
-- Create: `src/worldcap/models/__init__.py`
-- Create: `src/worldcap/models/tournament.py`
+- Create: `src/worldcup/models/__init__.py`
+- Create: `src/worldcup/models/tournament.py`
 
-- [ ] **Step 1: Write `src/worldcap/models/tournament.py`**
+- [ ] **Step 1: Write `src/worldcup/models/tournament.py`**
 
 ```python
 from datetime import datetime
@@ -548,23 +548,23 @@ class Match(SQLModel, table=True):
     away_score: Optional[int] = None
 ```
 
-- [ ] **Step 2: Write `src/worldcap/models/__init__.py`**
+- [ ] **Step 2: Write `src/worldcup/models/__init__.py`**
 
 ```python
-from worldcap.models.tournament import Competition, Match, Team, TournamentFormat
+from worldcup.models.tournament import Competition, Match, Team, TournamentFormat
 
 __all__ = ["Competition", "Match", "Team", "TournamentFormat"]
 ```
 
 - [ ] **Step 3: Verify the package imports**
 
-Run: `uv run python -c "from worldcap.models import Competition, Match, Team, TournamentFormat; print('ok')"`
+Run: `uv run python -c "from worldcup.models import Competition, Match, Team, TournamentFormat; print('ok')"`
 Expected: `ok`.
 
 - [ ] **Step 4: Commit**
 
 ```bash
-git add src/worldcap/models/
+git add src/worldcup/models/
 git commit -m "feat: tournament/team/match domain models"
 ```
 
@@ -602,8 +602,8 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 from sqlalchemy.pool import NullPool
 from sqlmodel import SQLModel
 
-import worldcap.models  # noqa: F401  ensures models are imported for autogenerate
-from worldcap.config import get_settings
+import worldcup.models  # noqa: F401  ensures models are imported for autogenerate
+from worldcup.config import get_settings
 
 config = context.config
 if config.config_file_name:
@@ -652,7 +652,7 @@ Expected: creates `migrations/versions/<hash>_initial_schema.py`.
 
 - [ ] **Step 6: Apply migration to a scratch DB**
 
-Run: `rm -f worldcap.db && uv run alembic upgrade head && sqlite3 worldcap.db ".tables"`
+Run: `rm -f worldcup.db && uv run alembic upgrade head && sqlite3 worldcup.db ".tables"`
 Expected: prints `alembic_version  competition  match  team  tournament_format`.
 
 - [ ] **Step 7: Commit**
@@ -678,9 +678,9 @@ git commit -m "feat: alembic migrations + initial schema"
 import pytest
 from sqlmodel import select
 
-from worldcap.config import get_settings
-from worldcap.db import get_session, init_db, reset_engine_cache
-from worldcap.models import Competition, TournamentFormat
+from worldcup.config import get_settings
+from worldcup.db import get_session, init_db, reset_engine_cache
+from worldcup.models import Competition, TournamentFormat
 from scripts.seed_competition import seed
 
 
@@ -733,8 +733,8 @@ from datetime import datetime, timezone
 
 from sqlmodel import select
 
-from worldcap.db import get_session
-from worldcap.models import Competition, TournamentFormat
+from worldcup.db import get_session
+from worldcup.models import Competition, TournamentFormat
 
 
 WC2026_FORMAT = TournamentFormat(
@@ -801,8 +801,8 @@ git commit -m "feat: seed WC 2026 competition + tournament format"
 ## Task 7: Sports-data API client
 
 **Files:**
-- Create: `src/worldcap/ingest/__init__.py`
-- Create: `src/worldcap/ingest/sports_data.py`
+- Create: `src/worldcup/ingest/__init__.py`
+- Create: `src/worldcup/ingest/sports_data.py`
 - Create: `tests/test_sports_data.py`
 
 - [ ] **Step 1: Write failing test**
@@ -814,7 +814,7 @@ import httpx
 import pytest
 import respx
 
-from worldcap.ingest.sports_data import (
+from worldcup.ingest.sports_data import (
     FootballDataClient,
     TeamDTO,
     FixtureDTO,
@@ -894,14 +894,14 @@ def respx_mock():
 Run: `uv run pytest tests/test_sports_data.py -v`
 Expected: `ModuleNotFoundError`.
 
-- [ ] **Step 4: Implement `src/worldcap/ingest/__init__.py`**
+- [ ] **Step 4: Implement `src/worldcup/ingest/__init__.py`**
 
 ```python
 ```
 
 (empty)
 
-- [ ] **Step 5: Implement `src/worldcap/ingest/sports_data.py`**
+- [ ] **Step 5: Implement `src/worldcup/ingest/sports_data.py`**
 
 ```python
 from datetime import datetime
@@ -1006,7 +1006,7 @@ Expected: 2 passed.
 - [ ] **Step 7: Commit**
 
 ```bash
-git add src/worldcap/ingest/ tests/test_sports_data.py tests/conftest.py
+git add src/worldcup/ingest/ tests/test_sports_data.py tests/conftest.py
 git commit -m "feat: football-data.org client (teams + fixtures)"
 ```
 
@@ -1015,7 +1015,7 @@ git commit -m "feat: football-data.org client (teams + fixtures)"
 ## Task 8: Fixtures ingest pipeline
 
 **Files:**
-- Create: `src/worldcap/ingest/fixtures.py`
+- Create: `src/worldcup/ingest/fixtures.py`
 - Create: `tests/test_fixtures.py`
 
 - [ ] **Step 1: Write failing test**
@@ -1029,11 +1029,11 @@ from unittest.mock import AsyncMock
 import pytest
 from sqlmodel import select
 
-from worldcap.config import get_settings
-from worldcap.db import get_session, init_db, reset_engine_cache
-from worldcap.ingest.fixtures import ingest_teams_and_fixtures
-from worldcap.ingest.sports_data import FixtureDTO, TeamDTO
-from worldcap.models import Match, Team
+from worldcup.config import get_settings
+from worldcup.db import get_session, init_db, reset_engine_cache
+from worldcup.ingest.fixtures import ingest_teams_and_fixtures
+from worldcup.ingest.sports_data import FixtureDTO, TeamDTO
+from worldcup.models import Match, Team
 from scripts.seed_competition import seed
 
 
@@ -1101,15 +1101,15 @@ async def test_ingest_is_idempotent(fake_client):
 Run: `uv run pytest tests/test_fixtures.py -v`
 Expected: `ModuleNotFoundError`.
 
-- [ ] **Step 3: Implement `src/worldcap/ingest/fixtures.py`**
+- [ ] **Step 3: Implement `src/worldcup/ingest/fixtures.py`**
 
 ```python
 from sqlmodel import select
 
-from worldcap.config import get_settings
-from worldcap.db import get_session
-from worldcap.ingest.sports_data import FootballDataClient
-from worldcap.models import Competition, Match, Team
+from worldcup.config import get_settings
+from worldcup.db import get_session
+from worldcup.ingest.sports_data import FootballDataClient
+from worldcup.models import Competition, Match, Team
 
 
 async def ingest_teams_and_fixtures(client: FootballDataClient) -> dict[str, int]:
@@ -1205,7 +1205,7 @@ Expected: 2 passed.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/worldcap/ingest/fixtures.py tests/test_fixtures.py
+git add src/worldcup/ingest/fixtures.py tests/test_fixtures.py
 git commit -m "feat: ingest teams + fixtures from football-data.org"
 ```
 
@@ -1214,11 +1214,11 @@ git commit -m "feat: ingest teams + fixtures from football-data.org"
 ## Task 9: OddsSnapshot model + migration
 
 **Files:**
-- Create: `src/worldcap/models/odds.py`
-- Modify: `src/worldcap/models/__init__.py`
+- Create: `src/worldcup/models/odds.py`
+- Modify: `src/worldcup/models/__init__.py`
 - Create: `migrations/versions/0002_odds_and_forecasts.py` (we'll add forecast tables in Task 10 in the same migration — defer the file until then)
 
-- [ ] **Step 1: Write `src/worldcap/models/odds.py`**
+- [ ] **Step 1: Write `src/worldcup/models/odds.py`**
 
 ```python
 from datetime import datetime
@@ -1240,11 +1240,11 @@ class OddsSnapshot(SQLModel, table=True):
     volume: Optional[float] = None
 ```
 
-- [ ] **Step 2: Update `src/worldcap/models/__init__.py`**
+- [ ] **Step 2: Update `src/worldcup/models/__init__.py`**
 
 ```python
-from worldcap.models.tournament import Competition, Match, Team, TournamentFormat
-from worldcap.models.odds import OddsSnapshot
+from worldcup.models.tournament import Competition, Match, Team, TournamentFormat
+from worldcup.models.odds import OddsSnapshot
 
 __all__ = [
     "Competition", "Match", "Team", "TournamentFormat",
@@ -1254,13 +1254,13 @@ __all__ = [
 
 - [ ] **Step 3: Verify the package imports**
 
-Run: `uv run python -c "from worldcap.models import OddsSnapshot; print('ok')"`
+Run: `uv run python -c "from worldcup.models import OddsSnapshot; print('ok')"`
 Expected: `ok`.
 
 - [ ] **Step 4: Commit (migration is generated together with forecast tables in Task 10)**
 
 ```bash
-git add src/worldcap/models/odds.py src/worldcap/models/__init__.py
+git add src/worldcup/models/odds.py src/worldcup/models/__init__.py
 git commit -m "feat: OddsSnapshot model"
 ```
 
@@ -1269,11 +1269,11 @@ git commit -m "feat: OddsSnapshot model"
 ## Task 10: Forecast snapshot models + migration
 
 **Files:**
-- Create: `src/worldcap/models/forecast.py`
-- Modify: `src/worldcap/models/__init__.py`
+- Create: `src/worldcup/models/forecast.py`
+- Modify: `src/worldcup/models/__init__.py`
 - Create: `migrations/versions/0002_odds_and_forecasts.py`
 
-- [ ] **Step 1: Write `src/worldcap/models/forecast.py`**
+- [ ] **Step 1: Write `src/worldcup/models/forecast.py`**
 
 ```python
 from datetime import datetime
@@ -1308,12 +1308,12 @@ class TournamentForecast(SQLModel, table=True):
     edge_vs_poly: float = 0.0
 ```
 
-- [ ] **Step 2: Update `src/worldcap/models/__init__.py`**
+- [ ] **Step 2: Update `src/worldcup/models/__init__.py`**
 
 ```python
-from worldcap.models.tournament import Competition, Match, Team, TournamentFormat
-from worldcap.models.odds import OddsSnapshot
-from worldcap.models.forecast import ForecastSnapshot, TournamentForecast
+from worldcup.models.tournament import Competition, Match, Team, TournamentFormat
+from worldcup.models.odds import OddsSnapshot
+from worldcup.models.forecast import ForecastSnapshot, TournamentForecast
 
 __all__ = [
     "Competition", "Match", "Team", "TournamentFormat",
@@ -1329,13 +1329,13 @@ Expected: new migration file under `migrations/versions/`. Rename it to `0002_od
 
 - [ ] **Step 4: Apply migration**
 
-Run: `rm -f worldcap.db && uv run alembic upgrade head && sqlite3 worldcap.db ".tables"`
+Run: `rm -f worldcup.db && uv run alembic upgrade head && sqlite3 worldcup.db ".tables"`
 Expected: lists all six tables plus `alembic_version`.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/worldcap/models/forecast.py src/worldcap/models/__init__.py migrations/versions/
+git add src/worldcup/models/forecast.py src/worldcup/models/__init__.py migrations/versions/
 git commit -m "feat: forecast snapshot models + migration"
 ```
 
@@ -1344,7 +1344,7 @@ git commit -m "feat: forecast snapshot models + migration"
 ## Task 11: Polymarket ingest
 
 **Files:**
-- Create: `src/worldcap/ingest/polymarket.py`
+- Create: `src/worldcup/ingest/polymarket.py`
 - Create: `tests/test_polymarket.py`
 
 - [ ] **Step 1: Write failing test**
@@ -1358,10 +1358,10 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from sqlmodel import select
 
-from worldcap.config import get_settings
-from worldcap.db import get_session, init_db, reset_engine_cache
-from worldcap.ingest.polymarket import ingest_outright_winner
-from worldcap.models import OddsSnapshot, Team
+from worldcup.config import get_settings
+from worldcup.db import get_session, init_db, reset_engine_cache
+from worldcup.ingest.polymarket import ingest_outright_winner
+from worldcup.models import OddsSnapshot, Team
 from scripts.seed_competition import seed
 
 
@@ -1426,15 +1426,15 @@ async def test_ingest_outright_handles_no_match(fake_poly_collector):
 Run: `uv run pytest tests/test_polymarket.py -v`
 Expected: `ModuleNotFoundError`.
 
-- [ ] **Step 3: Implement `src/worldcap/ingest/polymarket.py`**
+- [ ] **Step 3: Implement `src/worldcup/ingest/polymarket.py`**
 
 ```python
 from datetime import datetime, timezone
 
 from sqlmodel import select
 
-from worldcap.db import get_session
-from worldcap.models import Competition, OddsSnapshot, Team
+from worldcup.db import get_session
+from worldcup.models import Competition, OddsSnapshot, Team
 
 OUTRIGHT_QUERY = "FIFA World Cup 2026 winner"
 
@@ -1496,7 +1496,7 @@ Expected: 2 passed.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/worldcap/ingest/polymarket.py tests/test_polymarket.py
+git add src/worldcup/ingest/polymarket.py tests/test_polymarket.py
 git commit -m "feat: ingest Polymarket outright winner market"
 ```
 
@@ -1505,8 +1505,8 @@ git commit -m "feat: ingest Polymarket outright winner market"
 ## Task 12: Naive forecast generator
 
 **Files:**
-- Create: `src/worldcap/model/__init__.py`
-- Create: `src/worldcap/model/naive.py`
+- Create: `src/worldcup/model/__init__.py`
+- Create: `src/worldcup/model/naive.py`
 - Create: `tests/test_naive.py`
 
 - [ ] **Step 1: Write failing test**
@@ -1519,11 +1519,11 @@ from datetime import datetime, timezone
 import pytest
 from sqlmodel import select
 
-from worldcap.config import get_settings
-from worldcap.db import get_session, init_db, reset_engine_cache
-from worldcap.model.naive import generate_naive_forecast
-from worldcap.models import ForecastSnapshot, OddsSnapshot, Team, TournamentForecast
-from worldcap.models.tournament import Competition
+from worldcup.config import get_settings
+from worldcup.db import get_session, init_db, reset_engine_cache
+from worldcup.model.naive import generate_naive_forecast
+from worldcup.models import ForecastSnapshot, OddsSnapshot, Team, TournamentForecast
+from worldcup.models.tournament import Competition
 from scripts.seed_competition import seed
 
 
@@ -1609,14 +1609,14 @@ async def test_naive_forecast_skips_unknown_team_names():
 Run: `uv run pytest tests/test_naive.py -v`
 Expected: `ModuleNotFoundError`.
 
-- [ ] **Step 3: Create `src/worldcap/model/__init__.py`**
+- [ ] **Step 3: Create `src/worldcup/model/__init__.py`**
 
 ```python
 ```
 
 (empty)
 
-- [ ] **Step 4: Implement `src/worldcap/model/naive.py`**
+- [ ] **Step 4: Implement `src/worldcup/model/naive.py`**
 
 ```python
 import hashlib
@@ -1625,8 +1625,8 @@ from datetime import datetime, timezone
 
 from sqlmodel import select
 
-from worldcap.db import get_session
-from worldcap.models import (
+from worldcup.db import get_session
+from worldcup.models import (
     Competition,
     ForecastSnapshot,
     OddsSnapshot,
@@ -1697,7 +1697,7 @@ Expected: 2 passed.
 - [ ] **Step 6: Commit**
 
 ```bash
-git add src/worldcap/model/ tests/test_naive.py
+git add src/worldcup/model/ tests/test_naive.py
 git commit -m "feat: naive forecast generator (Polymarket-as-forecast)"
 ```
 
@@ -1706,9 +1706,9 @@ git commit -m "feat: naive forecast generator (Polymarket-as-forecast)"
 ## Task 13: Markdown renderer
 
 **Files:**
-- Create: `src/worldcap/render/__init__.py`
-- Create: `src/worldcap/render/templates/digest_pretournament.md.j2`
-- Create: `src/worldcap/render/markdown.py`
+- Create: `src/worldcup/render/__init__.py`
+- Create: `src/worldcup/render/templates/digest_pretournament.md.j2`
+- Create: `src/worldcup/render/markdown.py`
 - Create: `tests/test_markdown.py`
 
 - [ ] **Step 1: Write failing test**
@@ -1721,12 +1721,12 @@ from datetime import datetime, timezone
 import pytest
 from sqlmodel import select
 
-from worldcap.config import get_settings
-from worldcap.db import get_session, init_db, reset_engine_cache
-from worldcap.model.naive import generate_naive_forecast
-from worldcap.models import OddsSnapshot, Team
-from worldcap.models.tournament import Competition, Match
-from worldcap.render.markdown import render_digest_markdown
+from worldcup.config import get_settings
+from worldcup.db import get_session, init_db, reset_engine_cache
+from worldcup.model.naive import generate_naive_forecast
+from worldcup.models import OddsSnapshot, Team
+from worldcup.models.tournament import Competition, Match
+from worldcup.render.markdown import render_digest_markdown
 from scripts.seed_competition import seed
 
 
@@ -1784,14 +1784,14 @@ async def test_renders_pretournament_digest_with_outlook_and_next_fixtures():
 Run: `uv run pytest tests/test_markdown.py -v`
 Expected: `ModuleNotFoundError`.
 
-- [ ] **Step 3: Create `src/worldcap/render/__init__.py`**
+- [ ] **Step 3: Create `src/worldcup/render/__init__.py`**
 
 ```python
 ```
 
 (empty)
 
-- [ ] **Step 4: Create `src/worldcap/render/templates/digest_pretournament.md.j2`**
+- [ ] **Step 4: Create `src/worldcup/render/templates/digest_pretournament.md.j2`**
 
 ```jinja2
 # World Cup — {{ as_of.strftime('%Y-%m-%d') }}  ·  {{ phase_label }}
@@ -1811,7 +1811,7 @@ Expected: `ModuleNotFoundError`.
 {%- endfor %}
 ```
 
-- [ ] **Step 5: Implement `src/worldcap/render/markdown.py`**
+- [ ] **Step 5: Implement `src/worldcup/render/markdown.py`**
 
 ```python
 from dataclasses import dataclass
@@ -1821,10 +1821,10 @@ from pathlib import Path
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from sqlmodel import select
 
-from worldcap.db import get_session
-from worldcap.models import Team, TournamentForecast
-from worldcap.models.forecast import ForecastSnapshot
-from worldcap.models.tournament import Competition, Match
+from worldcup.db import get_session
+from worldcup.models import Team, TournamentForecast
+from worldcup.models.forecast import ForecastSnapshot
+from worldcup.models.tournament import Competition, Match
 
 
 TEMPLATES_DIR = Path(__file__).parent / "templates"
@@ -1926,7 +1926,7 @@ Expected: 1 passed.
 - [ ] **Step 7: Commit**
 
 ```bash
-git add src/worldcap/render/ tests/test_markdown.py
+git add src/worldcup/render/ tests/test_markdown.py
 git commit -m "feat: pre-tournament markdown digest renderer"
 ```
 
@@ -1935,7 +1935,7 @@ git commit -m "feat: pre-tournament markdown digest renderer"
 ## Task 14: Digest writer (file + pickup)
 
 **Files:**
-- Create: `src/worldcap/render/writer.py`
+- Create: `src/worldcup/render/writer.py`
 - Create: `tests/test_writer.py`
 
 - [ ] **Step 1: Write failing test**
@@ -1947,8 +1947,8 @@ from pathlib import Path
 
 import pytest
 
-from worldcap.config import get_settings
-from worldcap.render.writer import write_digest
+from worldcup.config import get_settings
+from worldcup.render.writer import write_digest
 
 
 @pytest.mark.asyncio
@@ -1985,12 +1985,12 @@ async def test_write_digest_creates_missing_dirs(tmp_path, monkeypatch):
 Run: `uv run pytest tests/test_writer.py -v`
 Expected: `ModuleNotFoundError`.
 
-- [ ] **Step 3: Implement `src/worldcap/render/writer.py`**
+- [ ] **Step 3: Implement `src/worldcup/render/writer.py`**
 
 ```python
 from pathlib import Path
 
-from worldcap.config import get_settings
+from worldcup.config import get_settings
 
 
 async def write_digest(text: str, date_str: str) -> Path:
@@ -2012,7 +2012,7 @@ Expected: 2 passed.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/worldcap/render/writer.py tests/test_writer.py
+git add src/worldcup/render/writer.py tests/test_writer.py
 git commit -m "feat: digest writer (dated file + WhatsApp pickup)"
 ```
 
@@ -2021,8 +2021,8 @@ git commit -m "feat: digest writer (dated file + WhatsApp pickup)"
 ## Task 15: Refresh orchestration
 
 **Files:**
-- Create: `src/worldcap/jobs/__init__.py`
-- Create: `src/worldcap/jobs/refresh.py`
+- Create: `src/worldcup/jobs/__init__.py`
+- Create: `src/worldcup/jobs/refresh.py`
 - Create: `tests/test_refresh.py`
 
 - [ ] **Step 1: Write failing test**
@@ -2036,11 +2036,11 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from sqlmodel import select
 
-from worldcap.config import get_settings
-from worldcap.db import get_session, init_db, reset_engine_cache
-from worldcap.ingest.sports_data import FixtureDTO, TeamDTO
-from worldcap.jobs.refresh import run_refresh
-from worldcap.models import ForecastSnapshot, OddsSnapshot, Team, TournamentForecast
+from worldcup.config import get_settings
+from worldcup.db import get_session, init_db, reset_engine_cache
+from worldcup.ingest.sports_data import FixtureDTO, TeamDTO
+from worldcup.jobs.refresh import run_refresh
+from worldcup.models import ForecastSnapshot, OddsSnapshot, Team, TournamentForecast
 from scripts.seed_competition import seed
 
 
@@ -2116,27 +2116,27 @@ async def test_run_refresh_end_to_end(fake_football_client, fake_poly_collector,
 Run: `uv run pytest tests/test_refresh.py -v`
 Expected: `ModuleNotFoundError`.
 
-- [ ] **Step 3: Create `src/worldcap/jobs/__init__.py`**
+- [ ] **Step 3: Create `src/worldcup/jobs/__init__.py`**
 
 ```python
 ```
 
 (empty)
 
-- [ ] **Step 4: Implement `src/worldcap/jobs/refresh.py`**
+- [ ] **Step 4: Implement `src/worldcup/jobs/refresh.py`**
 
 ```python
 from datetime import datetime, timezone
 from typing import Optional
 
-from worldcap.ingest.fixtures import ingest_teams_and_fixtures
-from worldcap.ingest.polymarket import ingest_outright_winner
-from worldcap.ingest.sports_data import FootballDataClient
-from worldcap.log import get_logger
-from worldcap.model.naive import generate_naive_forecast
-from worldcap.models.forecast import ForecastSnapshot
-from worldcap.render.markdown import render_digest_markdown
-from worldcap.render.writer import write_digest
+from worldcup.ingest.fixtures import ingest_teams_and_fixtures
+from worldcup.ingest.polymarket import ingest_outright_winner
+from worldcup.ingest.sports_data import FootballDataClient
+from worldcup.log import get_logger
+from worldcup.model.naive import generate_naive_forecast
+from worldcup.models.forecast import ForecastSnapshot
+from worldcup.render.markdown import render_digest_markdown
+from worldcup.render.writer import write_digest
 
 
 log = get_logger(__name__)
@@ -2176,7 +2176,7 @@ Expected: 1 passed.
 - [ ] **Step 6: Commit**
 
 ```bash
-git add src/worldcap/jobs/ tests/test_refresh.py
+git add src/worldcup/jobs/ tests/test_refresh.py
 git commit -m "feat: refresh orchestration (ingest + forecast + render + write)"
 ```
 
@@ -2185,7 +2185,7 @@ git commit -m "feat: refresh orchestration (ingest + forecast + render + write)"
 ## Task 16: APScheduler daily trigger
 
 **Files:**
-- Create: `src/worldcap/jobs/scheduler.py`
+- Create: `src/worldcup/jobs/scheduler.py`
 - Create: `tests/test_scheduler.py`
 
 - [ ] **Step 1: Write failing test**
@@ -2196,8 +2196,8 @@ git commit -m "feat: refresh orchestration (ingest + forecast + render + write)"
 import pytest
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
-from worldcap.config import get_settings
-from worldcap.jobs.scheduler import build_scheduler
+from worldcup.config import get_settings
+from worldcup.jobs.scheduler import build_scheduler
 
 
 def test_build_scheduler_registers_daily_job(monkeypatch):
@@ -2225,7 +2225,7 @@ def test_build_scheduler_registers_daily_job(monkeypatch):
 Run: `uv run pytest tests/test_scheduler.py -v`
 Expected: `ModuleNotFoundError`.
 
-- [ ] **Step 3: Implement `src/worldcap/jobs/scheduler.py`**
+- [ ] **Step 3: Implement `src/worldcup/jobs/scheduler.py`**
 
 ```python
 from typing import Callable
@@ -2233,7 +2233,7 @@ from typing import Callable
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 
-from worldcap.config import get_settings
+from worldcup.config import get_settings
 
 
 def build_scheduler(refresh_fn: Callable) -> AsyncIOScheduler:
@@ -2260,7 +2260,7 @@ Expected: 1 passed.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/worldcap/jobs/scheduler.py tests/test_scheduler.py
+git add src/worldcup/jobs/scheduler.py tests/test_scheduler.py
 git commit -m "feat: APScheduler daily trigger"
 ```
 
@@ -2269,8 +2269,8 @@ git commit -m "feat: APScheduler daily trigger"
 ## Task 17: FastAPI app + endpoints + lifespan
 
 **Files:**
-- Create: `src/worldcap/api/__init__.py`
-- Create: `src/worldcap/api/app.py`
+- Create: `src/worldcup/api/__init__.py`
+- Create: `src/worldcup/api/app.py`
 - Create: `tests/test_app.py`
 
 - [ ] **Step 1: Write failing test**
@@ -2283,9 +2283,9 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-from worldcap.api.app import build_app
-from worldcap.config import get_settings
-from worldcap.db import init_db, reset_engine_cache
+from worldcup.api.app import build_app
+from worldcup.config import get_settings
+from worldcup.db import init_db, reset_engine_cache
 from scripts.seed_competition import seed
 
 
@@ -2342,14 +2342,14 @@ async def test_post_refresh_runs_pipeline(fake_clients):
 Run: `uv run pytest tests/test_app.py -v`
 Expected: `ModuleNotFoundError`.
 
-- [ ] **Step 3: Create `src/worldcap/api/__init__.py`**
+- [ ] **Step 3: Create `src/worldcup/api/__init__.py`**
 
 ```python
 ```
 
 (empty)
 
-- [ ] **Step 4: Implement `src/worldcap/api/app.py`**
+- [ ] **Step 4: Implement `src/worldcup/api/app.py`**
 
 ```python
 import os
@@ -2359,12 +2359,12 @@ from datetime import datetime, timezone
 from fastapi import FastAPI
 from sqlmodel import select
 
-from worldcap.config import get_settings
-from worldcap.db import get_session
-from worldcap.jobs.refresh import run_refresh
-from worldcap.jobs.scheduler import build_scheduler
-from worldcap.log import configure_logging, get_logger
-from worldcap.models import ForecastSnapshot, Team, TournamentForecast
+from worldcup.config import get_settings
+from worldcup.db import get_session
+from worldcup.jobs.refresh import run_refresh
+from worldcup.jobs.scheduler import build_scheduler
+from worldcup.log import configure_logging, get_logger
+from worldcup.models import ForecastSnapshot, Team, TournamentForecast
 
 
 log = get_logger(__name__)
@@ -2374,7 +2374,7 @@ def _default_clients():
     """Production client builders. Imported lazily so tests don't need real keys."""
     from connectors.polymarket import PolymarketClientConfig, PolymarketCollector
 
-    from worldcap.ingest.sports_data import FootballDataClient
+    from worldcup.ingest.sports_data import FootballDataClient
 
     settings = get_settings()
     football = FootballDataClient(api_key=settings.football_data_api_key)
@@ -2407,7 +2407,7 @@ def build_app(football_client=None, poly_collector=None) -> FastAPI:
             if hasattr(football_client, "aclose"):
                 await football_client.aclose()
 
-    app = FastAPI(title="worldcap", lifespan=lifespan)
+    app = FastAPI(title="worldcup", lifespan=lifespan)
 
     @app.get("/healthz")
     async def healthz():
@@ -2455,10 +2455,10 @@ def build_app(football_client=None, poly_collector=None) -> FastAPI:
     return app
 
 
-# Module-level `app` for `uvicorn worldcap.api.app:app`. Skipped when tests / alembic
-# import the module — controlled by WORLDCAP_SKIP_DEFAULT_APP (set in tests/conftest.py
+# Module-level `app` for `uvicorn worldcup.api.app:app`. Skipped when tests / alembic
+# import the module — controlled by WORLDCUP_SKIP_DEFAULT_APP (set in tests/conftest.py
 # and migrations/env.py if needed).
-if os.environ.get("WORLDCAP_SKIP_DEFAULT_APP") == "1":
+if os.environ.get("WORLDCUP_SKIP_DEFAULT_APP") == "1":
     app = None
 else:
     try:
@@ -2475,7 +2475,7 @@ The conftest accumulates across tasks; this is the final version expected at thi
 import os
 
 # Skip building the real app on module import (no credentials in tests).
-os.environ["WORLDCAP_SKIP_DEFAULT_APP"] = "1"
+os.environ["WORLDCUP_SKIP_DEFAULT_APP"] = "1"
 
 from pathlib import Path
 
@@ -2485,7 +2485,7 @@ import respx
 
 @pytest.fixture(autouse=True)
 def _isolated_env(tmp_path, monkeypatch):
-    db_path = tmp_path / "worldcap.db"
+    db_path = tmp_path / "worldcup.db"
     output_dir = tmp_path / "output"
     output_dir.mkdir()
     monkeypatch.setenv("DATABASE_URL", f"sqlite+aiosqlite:///{db_path}")
@@ -2510,7 +2510,7 @@ Expected: 2 passed.
 - [ ] **Step 7: Commit**
 
 ```bash
-git add src/worldcap/api/ tests/test_app.py tests/conftest.py
+git add src/worldcup/api/ tests/test_app.py tests/conftest.py
 git commit -m "feat: FastAPI app with /healthz, /refresh, /forecast/latest"
 ```
 
@@ -2529,17 +2529,17 @@ Expected: all tests pass.
 - [ ] **Step 2: Apply migrations against a fresh DB**
 
 ```bash
-rm -f worldcap.db
+rm -f worldcup.db
 uv run alembic upgrade head
 uv run python scripts/seed_competition.py
 ```
 
-Expected: `worldcap.db` exists with all 7 tables; competition row inserted.
+Expected: `worldcup.db` exists with all 7 tables; competition row inserted.
 
 - [ ] **Step 3: Start uvicorn**
 
 ```bash
-uv run uvicorn worldcap.api.app:app --port 8765 &
+uv run uvicorn worldcup.api.app:app --port 8765 &
 sleep 2
 curl -s http://localhost:8765/healthz
 ```
@@ -2560,10 +2560,10 @@ kill %1
 
 ## Smoke run
 
-    rm -f worldcap.db
+    rm -f worldcup.db
     uv run alembic upgrade head
     uv run python scripts/seed_competition.py
-    uv run uvicorn worldcap.api.app:app --port 8765
+    uv run uvicorn worldcup.api.app:app --port 8765
     # in another shell:
     curl -s http://localhost:8765/healthz
     curl -s -X POST http://localhost:8765/refresh
@@ -2584,7 +2584,7 @@ git commit -m "docs: smoke-run instructions"
 - [ ] `uv run pytest -v` passes all tests
 - [ ] `uv run alembic upgrade head` applies cleanly from empty DB
 - [ ] `scripts/seed_competition.py` is idempotent
-- [ ] `uv run uvicorn worldcap.api.app:app` starts without errors
+- [ ] `uv run uvicorn worldcup.api.app:app` starts without errors
 - [ ] `GET /healthz` returns `200 {"status": "ok"}`
 - [ ] `POST /refresh` (with valid `FOOTBALL_DATA_API_KEY`) writes a digest to `output/YYYY-MM-DD.md` and updates `output/latest.md`
 - [ ] APScheduler registers a `daily_refresh` job on startup

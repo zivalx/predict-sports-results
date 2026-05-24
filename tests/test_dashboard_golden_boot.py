@@ -5,9 +5,9 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlmodel import select
 
-from worldcap.api.app import build_app
-from worldcap.db import get_session, init_db
-from worldcap.models import (
+from worldcup.api.app import build_app
+from worldcup.db import get_session, init_db
+from worldcup.models import (
     Competition,
     ForecastSnapshot,
     Player,

@@ -3,11 +3,11 @@ from datetime import datetime, timezone
 import pytest
 from sqlmodel import select
 
-from worldcap.db import get_session, init_db
-from worldcap.enrich.claude_client import FakeClaudeClient
-from worldcap.enrich.sentiment import score_unscored_items
-from worldcap.models import NewsItem, SentimentScore, SocialPost, Team
-from worldcap.models.tournament import Competition
+from worldcup.db import get_session, init_db
+from worldcup.enrich.claude_client import FakeClaudeClient
+from worldcup.enrich.sentiment import score_unscored_items
+from worldcup.models import NewsItem, SentimentScore, SocialPost, Team
+from worldcup.models.tournament import Competition
 from scripts.seed_competition import seed
 
 

@@ -1,6 +1,6 @@
-# worldcap MCP via Cloudflare Tunnel (private, shared with friends)
+# worldcup MCP via Cloudflare Tunnel (private, shared with friends)
 
-Expose your locally-running worldcap (on Mac or Windows, port 8765) as a
+Expose your locally-running worldcup (on Mac or Windows, port 8765) as a
 private subdomain like `api.zivalx.com` (or `mcp.zivalx.com`), gated by
 Cloudflare Access so only emails on your allowlist can reach it.
 
@@ -46,7 +46,7 @@ policy — is identical on Windows and macOS. Continue with Step 1 below.
 - `cloudflared` installed:
   - **macOS**: `brew install cloudflared`
   - **Windows**: see Windows-specific setup above
-- worldcap running locally on port 8765
+- worldcup running locally on port 8765
 
 ## Step 1: Authenticate cloudflared
 
@@ -60,7 +60,7 @@ This opens a browser, you pick zivalx.com, and a cert is saved to
 ## Step 2: Create the tunnel
 
 ```bash
-cloudflared tunnel create worldcap
+cloudflared tunnel create worldcup
 ```
 
 This writes a tunnel UUID + credentials JSON to `~/.cloudflared/<UUID>.json`.
@@ -71,7 +71,7 @@ Note the UUID — you'll reference it below.
 Use whatever hostname you want; example: `api.zivalx.com`.
 
 ```bash
-cloudflared tunnel route dns worldcap api.zivalx.com
+cloudflared tunnel route dns worldcup api.zivalx.com
 ```
 
 ## Step 4: Configure the tunnel
@@ -90,17 +90,17 @@ ingress:
 
 ## Step 5: Test the tunnel
 
-In one terminal, start worldcap:
+In one terminal, start worldcup:
 
 ```bash
-cd ~/repos_/worldcap
-uv run worldcap serve --port 8765
+cd ~/repos_/worldcup
+uv run worldcup serve --port 8765
 ```
 
 In another:
 
 ```bash
-cloudflared tunnel run worldcap
+cloudflared tunnel run worldcup
 ```
 
 Visit https://api.zivalx.com/healthz — should return `{"status":"ok"}`.
@@ -110,7 +110,7 @@ Visit https://api.zivalx.com/healthz — should return `{"status":"ok"}`.
 In Cloudflare dashboard → Zero Trust → Access → Applications → Add an application.
 
 - Type: Self-hosted
-- Application name: worldcap MCP
+- Application name: worldcup MCP
 - Application domain: api.zivalx.com
 - Identity provider: One-time PIN (email) — works without setting up Google/etc
 - Policy: "Allow", rule = "Emails" with the addresses of you + your friends
@@ -133,7 +133,7 @@ Now the tunnel is up whenever your Mac is on, independent of any terminal.
 
 ## Friends' setup
 
-To use worldcap from Claude Desktop:
+To use worldcup from Claude Desktop:
 
 1. Visit https://api.zivalx.com once in a browser, authenticate via PIN.
 2. In Claude Desktop config, add:
@@ -141,7 +141,7 @@ To use worldcap from Claude Desktop:
 ```json
 {
   "mcpServers": {
-    "worldcap": {
+    "worldcup": {
       "url": "https://api.zivalx.com/mcp",
       "headers": {
         "Cookie": "<copy from browser devtools after authenticating>"
@@ -156,8 +156,8 @@ To use worldcap from Claude Desktop:
 ## Caveats
 
 - **Mac asleep**: the tunnel dies when the Mac sleeps. Lid-closed-with-external-display
-  works. Or run worldcap on a Raspberry Pi at home that's always on.
+  works. Or run worldcup on a Raspberry Pi at home that's always on.
 - **Public IP not required**: Cloudflare Tunnel uses outbound connections only,
   so you don't need port forwarding or a static IP.
-- **One tunnel, multiple services**: you can route api.zivalx.com to worldcap
+- **One tunnel, multiple services**: you can route api.zivalx.com to worldcup
   and (later) other paths to other services from the same `config.yml`.

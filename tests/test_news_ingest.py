@@ -4,10 +4,10 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from sqlmodel import select
 
-from worldcap.db import get_session, init_db
-from worldcap.ingest.news import ingest_news_for_teams
-from worldcap.models import NewsItem, Team
-from worldcap.models.tournament import Competition
+from worldcup.db import get_session, init_db
+from worldcup.ingest.news import ingest_news_for_teams
+from worldcup.models import NewsItem, Team
+from worldcup.models.tournament import Competition
 from scripts.seed_competition import seed
 
 

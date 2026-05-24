@@ -1,0 +1,19 @@
+[Unit]
+Description=worldcup — daily WhatsApp post
+Wants=worldcup-wa.timer
+After=worldcup.service
+
+[Service]
+Type=oneshot
+User=worldcup
+Group=worldcup
+WorkingDirectory=/opt/worldcup/code/wa-bot
+EnvironmentFile=/opt/worldcup/wa-bot.env
+ExecStart=/usr/bin/npm start
+
+# Hardening
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

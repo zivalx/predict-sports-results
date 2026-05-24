@@ -10,7 +10,7 @@ const { Client, LocalAuth } = pkg;
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 // ── Config ───────────────────────────────────────────────────────────────────
-const WORLDCAP_GROUP_NAME = process.env.WORLDCAP_GROUP_NAME;
+const WORLDCUP_GROUP_NAME = process.env.WORLDCUP_GROUP_NAME;
 const LATEST_DIGEST_PATH_RAW = process.env.LATEST_DIGEST_PATH || '../output/latest.md';
 const FOOTER = (process.env.FOOTER ?? '').replace(/\\n/g, '\n');
 
@@ -25,14 +25,14 @@ function logError(msg) {
   console.error(`[${new Date().toISOString()}] ERROR: ${msg}`);
 }
 
-if (!WORLDCAP_GROUP_NAME) {
-  logError('Missing WORLDCAP_GROUP_NAME env var. See .env.example.');
+if (!WORLDCUP_GROUP_NAME) {
+  logError('Missing WORLDCUP_GROUP_NAME env var. See .env.example.');
   process.exit(1);
 }
 
 if (!existsSync(LATEST_DIGEST_PATH)) {
   logError(`Digest file not found at ${LATEST_DIGEST_PATH}. ` +
-           `Make sure worldcap has produced at least one refresh before running the bot.`);
+           `Make sure worldcup has produced at least one refresh before running the bot.`);
   process.exit(1);
 }
 
@@ -46,14 +46,14 @@ if (!digest) {
 const message = FOOTER ? `${digest}\n${FOOTER}` : digest;
 
 log(`Loaded digest: ${digest.length} chars from ${LATEST_DIGEST_PATH}`);
-log(`Target group: "${WORLDCAP_GROUP_NAME}"`);
+log(`Target group: "${WORLDCUP_GROUP_NAME}"`);
 
 // ── WhatsApp client ──────────────────────────────────────────────────────────
 const client = new Client({
-  // clientId 'worldcap' isolates this bot's session from the existing
-  // whatsapp-daily-bot. Sessions live under .wwebjs_auth/session-worldcap/
+  // clientId 'worldcup' isolates this bot's session from the existing
+  // whatsapp-daily-bot. Sessions live under .wwebjs_auth/session-worldcup/
   // (or wherever LocalAuth defaults; the clientId namespaces them).
-  authStrategy: new LocalAuth({ clientId: 'worldcap' }),
+  authStrategy: new LocalAuth({ clientId: 'worldcup' }),
   puppeteer: { args: ['--no-sandbox'] },
 });
 
@@ -79,7 +79,7 @@ client.on('ready', async () => {
   try {
     const chats = await client.getChats();
     const group = chats.find(
-      (chat) => chat.isGroup && chat.name === WORLDCAP_GROUP_NAME,
+      (chat) => chat.isGroup && chat.name === WORLDCUP_GROUP_NAME,
     );
 
     if (!group) {
@@ -88,7 +88,7 @@ client.on('ready', async () => {
         ? groups.map((c, i) => `  ${i + 1}. ${c.name}`).join('\n')
         : '  (none)';
       logError(
-        `Group "${WORLDCAP_GROUP_NAME}" not found.\n` +
+        `Group "${WORLDCUP_GROUP_NAME}" not found.\n` +
         `Available groups (${groups.length}):\n${groupNames}`,
       );
     } else {
