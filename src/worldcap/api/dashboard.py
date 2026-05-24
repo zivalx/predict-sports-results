@@ -1,0 +1,194 @@
+"""HTML routes for the worldcap dashboard.
+
+Server-rendered Jinja2 templates. HTMX is used for the manual-refresh button
+via a partial swap. All data flows from the latest ForecastSnapshot.
+"""
+
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from typing import Optional
+
+from fastapi import APIRouter, Request
+from fastapi.responses import HTMLResponse
+from sqlmodel import select
+
+from worldcap.config import get_settings
+from worldcap.db import get_session
+from worldcap.models import (
+    Competition,
+    ForecastSnapshot,
+    Match,
+    Team,
+    TournamentForecast,
+)
+
+
+router = APIRouter()
+
+
+@dataclass
+class TopContenderRow:
+    rank: int
+    team_name: str
+    p_champion: float
+    poly_p_champion: float
+    edge_vs_poly: float
+
+
+@dataclass
+class TodayMatchRow:
+    match_id: int
+    home_name: str
+    away_name: str
+    kickoff_utc: datetime
+    group_label: Optional[str]
+    stage: str
+
+
+@dataclass
+class HomeContext:
+    as_of: datetime
+    competition_name: str
+    days_to_kickoff: Optional[int]
+    phase_label: str
+    snapshot_ts: Optional[datetime]
+    contenders: list[TopContenderRow]
+    today_matches: list[TodayMatchRow]
+
+
+async def _build_home_context() -> HomeContext:
+    settings = get_settings()
+    now = datetime.now(timezone.utc)
+
+    async with get_session() as session:
+        comp = (await session.execute(
+            select(Competition).where(Competition.code == settings.db_competition_code)
+        )).scalar_one_or_none()
+        if comp is None:
+            return HomeContext(
+                as_of=now,
+                competition_name="(unseeded)",
+                days_to_kickoff=None,
+                phase_label="not-seeded",
+                snapshot_ts=None,
+                contenders=[],
+                today_matches=[],
+            )
+
+        snap = (await session.execute(
+            select(ForecastSnapshot)
+            .where(ForecastSnapshot.competition_id == comp.id)
+            .order_by(ForecastSnapshot.snapshot_date.desc())
+        )).scalars().first()
+
+        contenders: list[TopContenderRow] = []
+        if snap is not None:
+            forecasts = (await session.execute(
+                select(TournamentForecast)
+                .where(TournamentForecast.snapshot_id == snap.id)
+                .order_by(TournamentForecast.p_champion.desc())
+                .limit(5)
+            )).scalars().all()
+            team_by_id = {
+                t.id: t for t in (await session.execute(select(Team))).scalars().all()
+            }
+            for i, f in enumerate(forecasts, 1):
+                contenders.append(TopContenderRow(
+                    rank=i,
+                    team_name=team_by_id[f.team_id].name if f.team_id in team_by_id else f"team-{f.team_id}",
+                    p_champion=f.p_champion,
+                    poly_p_champion=f.poly_p_champion or 0.0,
+                    edge_vs_poly=f.edge_vs_poly,
+                ))
+
+        upcoming = (await session.execute(
+            select(Match)
+            .where(Match.competition_id == comp.id)
+            .where(Match.status == "SCHEDULED")
+            .where(Match.kickoff_utc >= now)
+            .order_by(Match.kickoff_utc.asc())
+            .limit(20)
+        )).scalars().all()
+        teams_by_id = {
+            t.id: t for t in (await session.execute(select(Team))).scalars().all()
+        }
+        today_matches: list[TodayMatchRow] = []
+        for m in upcoming:
+            if m.home_team_id is None or m.away_team_id is None:
+                continue
+            today_matches.append(TodayMatchRow(
+                match_id=m.id,
+                home_name=teams_by_id[m.home_team_id].name,
+                away_name=teams_by_id[m.away_team_id].name,
+                kickoff_utc=m.kickoff_utc,
+                group_label=m.group_label,
+                stage=m.stage,
+            ))
+            if len(today_matches) >= 3:
+                break
+
+        # Compute phase
+        def _naive(d: datetime) -> datetime:
+            if d.tzinfo is None:
+                return d
+            return d.astimezone(timezone.utc).replace(tzinfo=None)
+        a = _naive(now); s = _naive(comp.start_date); e = _naive(comp.end_date)
+        if a < s:
+            days_to = (s - a).days
+            phase = f"T−{days_to} days · pre-tournament"
+        elif a <= e:
+            days_to = 0
+            phase = "in-tournament"
+        else:
+            days_to = None
+            phase = "post-tournament"
+
+        return HomeContext(
+            as_of=now,
+            competition_name=comp.name,
+            days_to_kickoff=days_to,
+            phase_label=phase,
+            snapshot_ts=snap.snapshot_date if snap else None,
+            contenders=contenders,
+            today_matches=today_matches,
+        )
+
+
+@router.get("/", response_class=HTMLResponse)
+async def home(request: Request):
+    ctx = await _build_home_context()
+    contenders_list = [
+        {
+            "rank": c.rank,
+            "team_name": c.team_name,
+            "p_champion": c.p_champion,
+            "poly_p_champion": c.poly_p_champion,
+            "edge_vs_poly": c.edge_vs_poly,
+        }
+        for c in ctx.contenders
+    ]
+    today_matches_list = [
+        {
+            "match_id": m.match_id,
+            "home_name": m.home_name,
+            "away_name": m.away_name,
+            "kickoff_utc": m.kickoff_utc,
+            "group_label": m.group_label,
+            "stage": m.stage,
+        }
+        for m in ctx.today_matches
+    ]
+    context = {
+        "as_of": ctx.as_of,
+        "competition_name": ctx.competition_name,
+        "days_to_kickoff": ctx.days_to_kickoff,
+        "phase_label": ctx.phase_label,
+        "snapshot_ts": ctx.snapshot_ts,
+        "contenders": contenders_list,
+        "today_matches": today_matches_list,
+    }
+    return request.app.state.templates.TemplateResponse(
+        request=request,
+        name="home.html",
+        context=context,
+    )

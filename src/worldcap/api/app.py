@@ -8,6 +8,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sqlmodel import select
 
+from worldcap.api.dashboard import router as dashboard_router
 from worldcap.config import get_settings
 from worldcap.db import get_session
 from worldcap.jobs.refresh import run_refresh
@@ -66,6 +67,9 @@ def build_app(football_client=None, poly_collector=None) -> FastAPI:
     app.mount("/static", StaticFiles(directory=_this_dir / "static"), name="static")
     templates = Jinja2Templates(directory=_this_dir / "templates")
     app.state.templates = templates
+
+    # Dashboard routes
+    app.include_router(dashboard_router)
 
     @app.get("/healthz")
     async def healthz():
