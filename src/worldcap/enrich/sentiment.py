@@ -11,7 +11,7 @@ from sqlmodel import select
 
 from worldcap.config import get_settings
 from worldcap.db import get_session
-from worldcap.enrich.claude_client import _BaseClaudeClient
+from worldcap.enrich.claude_client import TokenBudgetExceeded, _BaseClaudeClient
 from worldcap.log import get_logger
 from worldcap.models import NewsItem, SentimentScore, SocialPost
 
@@ -64,7 +64,22 @@ async def score_unscored_items(client, limit: int = 50) -> dict[str, int]:
 
         now = datetime.now(timezone.utc)
         for target_type, target_id, text in work:
-            result = await client.score_text(text, model=model)
+            try:
+                result = await client.score_text(text, model=model)
+            except TokenBudgetExceeded:
+                log.warning(
+                    "sentiment.budget_exceeded",
+                    scored_so_far=posts_scored + items_scored,
+                )
+                break  # stop the loop entirely
+            except Exception as exc:  # noqa: BLE001
+                log.warning(
+                    "sentiment.call_failed",
+                    error=str(exc),
+                    target_type=target_type,
+                    target_id=target_id,
+                )
+                continue  # skip this item, keep going
             if result is None:
                 continue
             session.add(SentimentScore(

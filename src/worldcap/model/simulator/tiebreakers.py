@@ -53,15 +53,20 @@ def _compute_standings(matches: list[GroupMatch]) -> dict[Any, _Standing]:
     return rows
 
 
-def resolve_standings(matches: list[GroupMatch], *, rng: random.Random) -> list[Any]:
-    """Return the 4 teams in finishing order.
+def resolve_standings(matches: list[GroupMatch], *, rng: random.Random) -> tuple[list[Any], dict]:
+    """Return (ordered_teams, standings_map).
 
-    Tie-broken first by points, then GD, then GF, then random lots.
+    ordered_teams: the 4 teams in finishing order (winner first).
+        Tie-broken first by points, then GD, then GF, then random lots.
+    standings_map: dict mapping each team → its _Standing (points, gd, gf).
     """
-    rows = list(_compute_standings(matches).values())
+    rows_dict = _compute_standings(matches)
+    rows = list(rows_dict.values())
     # Stable sort by primary keys; equal-key ties get resolved by lots.
     # We achieve "lots" by attaching a random tag to each row before sorting,
     # so equal-key teams get a stable random ordering.
     tagged = [(r, rng.random()) for r in rows]
     tagged.sort(key=lambda t: (-t[0].points, -t[0].gd, -t[0].gf, t[1]))
-    return [t[0].team for t in tagged]
+    ordered_teams = [t[0].team for t in tagged]
+    standings_map = {s.team: s for s in rows_dict.values()}
+    return ordered_teams, standings_map
