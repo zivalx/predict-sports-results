@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     sentiment_model: str = "claude-haiku-4-5"
     rationale_model: str = "claude-sonnet-4-5"
     rationale_token_budget: int = 100_000
+    rationale_horizon_days: int = 14
 
     # News
     gnews_api_key: str = ""

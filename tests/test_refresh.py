@@ -62,8 +62,8 @@ async def test_run_refresh_end_to_end(fake_football_client, fake_poly_collector)
     await init_db()
     await seed()
 
-    # Use an as_of close to the fixture kickoff (default horizon is 14 days; the
-    # fixture is set for 2026-06-11, so we put as_of at 2026-06-05).
+    # Fixture kickoff is 2026-06-11; as_of is 2026-06-05 (6 days before).
+    # generate_match_forecasts now covers all future scheduled matches.
     as_of = datetime(2026, 6, 5, tzinfo=timezone.utc)
     snap = await run_refresh(
         trigger="manual",
@@ -81,7 +81,7 @@ async def test_run_refresh_end_to_end(fake_football_client, fake_poly_collector)
     assert len(teams) == 2
     assert len(odds) == 1
     assert len(tournament_forecasts) == 0  # simulator skips when WC groups not fully seeded
-    assert len(match_forecasts) == 1       # Brazil vs France within horizon
+    assert len(match_forecasts) == 1       # Brazil vs France (only scheduled fixture)
 
     mf = match_forecasts[0]
     assert mf.p_home + mf.p_draw + mf.p_away == pytest.approx(1.0, abs=1e-9)
@@ -247,6 +247,94 @@ async def test_run_refresh_full_wc_writes_rationales(
     rationales = [f for f in forecasts if f.rationale_md]
     assert len(rationales) >= 1
     assert "analytical paragraph" in rationales[0].rationale_md
+
+
+@pytest.mark.asyncio
+async def test_rationale_loop_only_processes_matches_within_horizon(
+    fake_poly_collector,
+):
+    """Two matches: one 5 days out, one 30 days out.
+    After run_refresh with rationale_horizon_days=14, only the near match gets
+    rationale_md set; the far match doesn't.
+    """
+    from unittest.mock import AsyncMock
+    from worldcap.enrich.claude_client import FakeClaudeClient
+    from worldcap.ingest.sports_data import FixtureDTO, TeamDTO
+
+    await init_db()
+    await seed()
+
+    as_of = datetime(2026, 6, 5, tzinfo=timezone.utc)
+    near_kickoff = as_of + timedelta(days=5)   # within 14-day rationale horizon
+    far_kickoff = as_of + timedelta(days=30)   # outside 14-day rationale horizon
+
+    client = AsyncMock()
+    client.get_teams.return_value = [
+        TeamDTO(external_id=801, name="Spain", country_code="ESP"),
+        TeamDTO(external_id=802, name="Portugal", country_code="POR"),
+        TeamDTO(external_id=803, name="Netherlands", country_code="NED"),
+        TeamDTO(external_id=804, name="Belgium", country_code="BEL"),
+    ]
+    client.get_fixtures.return_value = [
+        FixtureDTO(
+            external_id=901,
+            stage="group",
+            group_label="C",
+            kickoff_utc=near_kickoff,
+            status="SCHEDULED",
+            home_external_id=801,
+            away_external_id=802,
+            home_score=None,
+            away_score=None,
+        ),
+        FixtureDTO(
+            external_id=902,
+            stage="group",
+            group_label="D",
+            kickoff_utc=far_kickoff,
+            status="SCHEDULED",
+            home_external_id=803,
+            away_external_id=804,
+            home_score=None,
+            away_score=None,
+        ),
+    ]
+
+    claude = FakeClaudeClient(
+        canned_completion="Near-match rationale text.",
+        canned_score=0.1,
+        token_budget=1_000_000,
+    )
+
+    snap = await run_refresh(
+        trigger="manual",
+        football_client=client,
+        poly_collector=fake_poly_collector,
+        claude_client=claude,
+        as_of=as_of,
+    )
+
+    async with get_session() as session:
+        from worldcap.models import Match
+        forecasts = (await session.execute(
+            select(MatchForecast, Match)
+            .join(Match, MatchForecast.match_id == Match.id)
+            .where(MatchForecast.snapshot_id == snap.id)
+            .order_by(Match.kickoff_utc.asc())
+        )).all()
+
+    assert len(forecasts) == 2, "Both matches should have probability forecasts"
+
+    # Ordered by kickoff_utc asc: index 0 = near match (5 days), index 1 = far match (30 days).
+    near_mf, near_match = forecasts[0]
+    far_mf, far_match = forecasts[1]
+
+    # Confirm ordering is correct (naive datetime comparison is fine for ordering).
+    assert near_match.kickoff_utc < far_match.kickoff_utc
+
+    # Near match (within 14-day rationale horizon) should have rationale; far match should not.
+    assert near_mf.rationale_md is not None, "Near match should have rationale"
+    assert far_mf.rationale_md is None, "Far match should NOT have rationale"
 
 
 @pytest.mark.asyncio

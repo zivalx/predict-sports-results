@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from sqlmodel import select
@@ -20,7 +20,7 @@ from worldcap.model.per_match import generate_match_forecasts
 from worldcap.model.ratings import load_seed_ratings
 from worldcap.model.simulated_forecast import generate_simulated_forecast
 from worldcap.model.top_scorer_forecast import generate_top_scorer_forecast
-from worldcap.models import Competition, MatchForecast
+from worldcap.models import Competition, Match, MatchForecast
 from worldcap.models.forecast import ForecastSnapshot
 from worldcap.rationale.match import generate_rationale_for_match
 from worldcap.render.markdown import render_digest_markdown
@@ -107,10 +107,16 @@ async def run_refresh(
 
     if claude_client is not None and not claude_client.is_disabled():
         try:
+            horizon_end = as_of + timedelta(days=settings.rationale_horizon_days)
             async with get_session() as session:
-                match_forecasts = (await session.execute(
-                    select(MatchForecast).where(MatchForecast.snapshot_id == snap.id)
-                )).scalars().all()
+                rows = (await session.execute(
+                    select(MatchForecast, Match)
+                    .join(Match, MatchForecast.match_id == Match.id)
+                    .where(MatchForecast.snapshot_id == snap.id)
+                    .where(Match.kickoff_utc <= horizon_end)
+                    .order_by(Match.kickoff_utc.asc())
+                )).all()
+            match_forecasts = [mf for mf, _ in rows]
             rationale_count = 0
             for mf in match_forecasts:
                 try:
