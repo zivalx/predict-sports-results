@@ -5,11 +5,11 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from sqlmodel import select
 
-from worldcap.config import get_settings
-from worldcap.db import get_session, init_db
-from worldcap.ingest.sports_data import FixtureDTO, TeamDTO
-from worldcap.jobs.refresh import run_refresh
-from worldcap.models import (
+from worldcup.config import get_settings
+from worldcup.db import get_session, init_db
+from worldcup.ingest.sports_data import FixtureDTO, TeamDTO
+from worldcup.jobs.refresh import run_refresh
+from worldcup.models import (
     ForecastSnapshot,
     MatchForecast,
     OddsSnapshot,
@@ -101,7 +101,7 @@ def _build_full_wc_fixtures():
     Country codes follow the {label}{i} pattern. Generates all 6 matches per group
     (round-robin among 4 teams).
     """
-    from worldcap.ingest.sports_data import TeamDTO, FixtureDTO
+    from worldcup.ingest.sports_data import TeamDTO, FixtureDTO
 
     teams = []
     for gi, label in enumerate(GROUP_LABELS):
@@ -216,8 +216,8 @@ async def test_run_refresh_full_wc_writes_rationales(
     fake_gnews_collector,
     fake_reddit_collector,
 ):
-    from worldcap.enrich.claude_client import FakeClaudeClient
-    from worldcap.models import MatchForecast
+    from worldcup.enrich.claude_client import FakeClaudeClient
+    from worldcup.models import MatchForecast
 
     await init_db()
     await seed()
@@ -258,8 +258,8 @@ async def test_rationale_loop_only_processes_matches_within_horizon(
     rationale_md set; the far match doesn't.
     """
     from unittest.mock import AsyncMock
-    from worldcap.enrich.claude_client import FakeClaudeClient
-    from worldcap.ingest.sports_data import FixtureDTO, TeamDTO
+    from worldcup.enrich.claude_client import FakeClaudeClient
+    from worldcup.ingest.sports_data import FixtureDTO, TeamDTO
 
     await init_db()
     await seed()
@@ -315,7 +315,7 @@ async def test_rationale_loop_only_processes_matches_within_horizon(
     )
 
     async with get_session() as session:
-        from worldcap.models import Match
+        from worldcup.models import Match
         forecasts = (await session.execute(
             select(MatchForecast, Match)
             .join(Match, MatchForecast.match_id == Match.id)
@@ -342,7 +342,7 @@ async def test_run_refresh_full_wc_writes_top_scorer_forecasts(
     fake_full_wc_football_client,
     fake_poly_collector,
 ):
-    from worldcap.models import Player, TopScorerForecast
+    from worldcup.models import Player, TopScorerForecast
 
     await init_db()
     await seed()

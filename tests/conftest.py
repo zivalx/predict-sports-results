@@ -1,7 +1,7 @@
 import os
 
 # Skip building the real app on module import (no credentials in tests).
-os.environ["WORLDCAP_SKIP_DEFAULT_APP"] = "1"
+os.environ["WORLDCUP_SKIP_DEFAULT_APP"] = "1"
 
 from pathlib import Path
 
@@ -11,7 +11,7 @@ import respx
 
 @pytest.fixture(autouse=True)
 def _isolated_env(tmp_path, monkeypatch):
-    db_path = tmp_path / "worldcap.db"
+    db_path = tmp_path / "worldcup.db"
     output_dir = tmp_path / "output"
     output_dir.mkdir()
     monkeypatch.setenv("DATABASE_URL", f"sqlite+aiosqlite:///{db_path}")
@@ -28,8 +28,8 @@ def _isolated_env(tmp_path, monkeypatch):
     monkeypatch.setenv("SENTIMENT_MODEL", "claude-haiku-4-5")
     monkeypatch.setenv("RATIONALE_MODEL", "claude-sonnet-4-5")
     # Reset caches so the new env vars take effect
-    from worldcap.config import get_settings
-    from worldcap.db import reset_engine_cache
+    from worldcup.config import get_settings
+    from worldcup.db import reset_engine_cache
     get_settings.cache_clear()
     reset_engine_cache()
     yield

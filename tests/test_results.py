@@ -4,11 +4,11 @@ from unittest.mock import AsyncMock
 import pytest
 from sqlmodel import select
 
-from worldcap.db import get_session, init_db
-from worldcap.ingest.results import ingest_completed_results
-from worldcap.ingest.sports_data import FixtureDTO, TeamDTO
-from worldcap.models import Match, Team
-from worldcap.models.tournament import Competition
+from worldcup.db import get_session, init_db
+from worldcup.ingest.results import ingest_completed_results
+from worldcup.ingest.sports_data import FixtureDTO, TeamDTO
+from worldcup.models import Match, Team
+from worldcup.models.tournament import Competition
 from scripts.seed_competition import seed
 
 

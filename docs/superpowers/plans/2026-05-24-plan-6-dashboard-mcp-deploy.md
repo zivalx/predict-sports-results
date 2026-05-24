@@ -1,10 +1,10 @@
-# worldcap — Plan 6: HTMX dashboard + MCP exposure + deploy
+# worldcup — Plan 6: HTMX dashboard + MCP exposure + deploy
 
 > **For agentic workers:** REQUIRED SUB-SKILL: superpowers:subagent-driven-development.
 
-**Goal:** Make worldcap consumable beyond the Markdown digest. Three deliverables:
+**Goal:** Make worldcup consumable beyond the Markdown digest. Three deliverables:
 1. A lightweight **HTMX dashboard** at `/` for browsing the latest snapshot (tournament outlook, Golden Boot, per-match cards, snapshot history).
-2. **MCP server** mounted at `/mcp` exposing the forecast data as tools so agents (Claude, Navigator, etc.) can query worldcap directly.
+2. **MCP server** mounted at `/mcp` exposing the forecast data as tools so agents (Claude, Navigator, etc.) can query worldcup directly.
 3. **Production deploy artifacts** — systemd unit, env reference, a deploy README — targeting the Hetzner VPS path the user already plans for.
 
 **Architecture:**
@@ -39,7 +39,7 @@ And a Hetzner deploy recipe under `deploy/`.
 ## File structure
 
 ```
-src/worldcap/
+src/worldcup/
 ├── api/
 │   ├── app.py              # mount dashboard router + MCP
 │   ├── dashboard.py        # NEW — HTML routes
@@ -56,7 +56,7 @@ src/worldcap/
 
 deploy/
 ├── README.md               # NEW — step-by-step Hetzner deploy
-├── worldcap.service        # NEW — systemd unit
+├── worldcup.service        # NEW — systemd unit
 └── env.production.example  # NEW — required env vars in production
 ```
 
@@ -65,7 +65,7 @@ deploy/
 ### Task 0: Dependencies + scaffolding
 
 - Add `fastapi-mcp>=0.3.0` to `pyproject.toml`
-- Create `src/worldcap/api/templates/` and `src/worldcap/api/static/`
+- Create `src/worldcup/api/templates/` and `src/worldcup/api/static/`
 - Configure FastAPI to serve `static/` and load templates from `templates/`
 - Add `base.html` (header, nav, footer scaffold) + `dashboard.css`
 - One smoke test: `GET /static/dashboard.css` returns 200
@@ -102,14 +102,14 @@ deploy/
 
 ### Task 5: MCP-friendly JSON endpoints + fastapi-mcp mount
 
-- `src/worldcap/api/mcp_endpoints.py` — typed JSON endpoints with Pydantic response models + clear docstrings (these become the MCP tool descriptions)
+- `src/worldcup/api/mcp_endpoints.py` — typed JSON endpoints with Pydantic response models + clear docstrings (these become the MCP tool descriptions)
 - 4 endpoints: `get_tournament_outlook`, `get_match_forecast`, `get_golden_boot_race`, `get_team_overview`
 - Mount via `fastapi-mcp` in `build_app`
 - Tests: each endpoint returns the expected JSON shape
 
 ### Task 6: Deploy artifacts + README
 
-- `deploy/worldcap.service` — systemd unit (uvicorn + worldcap.api.app + env file)
+- `deploy/worldcup.service` — systemd unit (uvicorn + worldcup.api.app + env file)
 - `deploy/env.production.example` — required env vars
 - `deploy/README.md` — step-by-step Hetzner VPS setup: install uv, clone repo, install deps, alembic upgrade, seed competition, configure systemd, start service, optional Caddy reverse proxy snippet for HTTPS
 
@@ -123,8 +123,8 @@ deploy/
 - All previous tests still pass (110/110)
 - New dashboard tests pass (smoke: each page returns 200 + key strings)
 - MCP endpoint tests pass (correct JSON shapes)
-- `deploy/worldcap.service` is a valid systemd unit (parseable)
-- A fresh clone + `uv sync && uv run alembic upgrade head && uv run python scripts/seed_competition.py && uv run uvicorn worldcap.api.app:app` brings the service up and `/` returns the dashboard
+- `deploy/worldcup.service` is a valid systemd unit (parseable)
+- A fresh clone + `uv sync && uv run alembic upgrade head && uv run python scripts/seed_competition.py && uv run uvicorn worldcup.api.app:app` brings the service up and `/` returns the dashboard
 
 ## Explicit non-goals (v0)
 

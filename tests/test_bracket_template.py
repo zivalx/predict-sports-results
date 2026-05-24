@@ -5,7 +5,7 @@ from dataclasses import dataclass
 
 import pytest
 
-from worldcap.model.simulator.bracket_template import (
+from worldcup.model.simulator.bracket_template import (
     WC2026_F_FROM_SF,
     WC2026_QF_FROM_R16,
     WC2026_R16_FROM_R32,
@@ -13,7 +13,7 @@ from worldcap.model.simulator.bracket_template import (
     WC2026_SF_FROM_QF,
     assign_third_place_slots,
 )
-from worldcap.model.simulator.orchestrator import SimulationResult, simulate_tournament
+from worldcup.model.simulator.orchestrator import SimulationResult, simulate_tournament
 
 
 @dataclass(frozen=True)

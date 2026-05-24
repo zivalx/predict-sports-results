@@ -4,8 +4,8 @@ from datetime import datetime, timezone
 import pytest
 from sqlmodel import select
 
-from worldcap.db import get_session, init_db
-from worldcap.models import (
+from worldcup.db import get_session, init_db
+from worldcup.models import (
     Competition,
     ForecastSnapshot,
     Match,
@@ -14,7 +14,7 @@ from worldcap.models import (
     TopScorerForecast,
     TournamentForecast,
 )
-from worldcap.render.static_export import export_static
+from worldcup.render.static_export import export_static
 from scripts.seed_competition import seed
 
 

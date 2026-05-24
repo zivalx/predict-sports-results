@@ -1,19 +1,19 @@
-# worldcap on macOS — daily refresh + push to Cloudflare Pages
+# worldcup on macOS — daily refresh + push to Cloudflare Pages
 
-Sets up a launchd job that runs the worldcap pipeline daily, exports the
+Sets up a launchd job that runs the worldcup pipeline daily, exports the
 dashboard as static files, and pushes them to a Cloudflare Pages-connected
 repo (which then auto-deploys to worldcup.zivalx.com).
 
 ## Prerequisites
 
-- worldcap repo cloned at `~/repos_/worldcap` (or adjust paths in `refresh.sh`)
+- worldcup repo cloned at `~/repos_/worldcup` (or adjust paths in `refresh.sh`)
 - `uv` installed (`brew install uv` or `curl -LsSf https://astral.sh/uv/install.sh | sh`)
-- `.env` file in `~/repos_/worldcap/.env` with all required API keys (see project root `.env.example`)
+- `.env` file in `~/repos_/worldcup/.env` with all required API keys (see project root `.env.example`)
 - A separate git repo connected to Cloudflare Pages — see "Cloudflare Pages setup" below
 
 ## Cloudflare Pages setup (one-time)
 
-1. Create a new public-or-private GitHub repo, e.g. `worldcap-static`. It will hold the rendered HTML.
+1. Create a new public-or-private GitHub repo, e.g. `worldcup-static`. It will hold the rendered HTML.
 2. In Cloudflare dashboard → Pages → Create project → Connect to Git → select that repo, branch `worldcup-static` (we'll create that branch on first push).
 3. Build settings: **none** (no build command, output directory `/`). It's pre-rendered HTML.
 4. After it deploys once, attach custom domain `worldcup.zivalx.com` in Pages settings.
@@ -23,11 +23,11 @@ repo (which then auto-deploys to worldcup.zivalx.com).
 Before installing the launchd job, do a one-time verification:
 
 ```bash
-cd ~/repos_/worldcap
+cd ~/repos_/worldcup
 
 # Set env vars for the push (the launchd plist doesn't run with your shell env)
-export STATIC_REPO=git@github.com:YOUR_GH_USERNAME/worldcap-static.git
-export WORLDCAP_BASE_URL=https://worldcup.zivalx.com
+export STATIC_REPO=git@github.com:YOUR_GH_USERNAME/worldcup-static.git
+export WORLDCUP_BASE_URL=https://worldcup.zivalx.com
 
 # Make sure SSH to GitHub works:
 ssh -T git@github.com
@@ -36,7 +36,7 @@ ssh -T git@github.com
 ./deploy/macos/refresh.sh
 
 # Check the output:
-tail -50 ~/Library/Logs/worldcap-refresh.log
+tail -50 ~/Library/Logs/worldcup-refresh.log
 ```
 
 If the push succeeded, visit your Cloudflare Pages deployment URL. The dashboard
@@ -46,10 +46,10 @@ should be there. Custom domain (worldcup.zivalx.com) propagates shortly.
 
 ```bash
 # Copy + customise the plist
-cp deploy/macos/com.worldcap.daily.plist ~/Library/LaunchAgents/
-# Edit the plist to bake STATIC_REPO + WORLDCAP_BASE_URL via EnvironmentVariables,
+cp deploy/macos/com.worldcup.daily.plist ~/Library/LaunchAgents/
+# Edit the plist to bake STATIC_REPO + WORLDCUP_BASE_URL via EnvironmentVariables,
 # OR add a wrapper script that sets them. Easiest:
-$EDITOR ~/Library/LaunchAgents/com.worldcap.daily.plist
+$EDITOR ~/Library/LaunchAgents/com.worldcup.daily.plist
 ```
 
 Add an `EnvironmentVariables` dict to the plist:
@@ -58,8 +58,8 @@ Add an `EnvironmentVariables` dict to the plist:
 <key>EnvironmentVariables</key>
 <dict>
   <key>STATIC_REPO</key>
-  <string>git@github.com:YOUR_GH_USERNAME/worldcap-static.git</string>
-  <key>WORLDCAP_BASE_URL</key>
+  <string>git@github.com:YOUR_GH_USERNAME/worldcup-static.git</string>
+  <key>WORLDCUP_BASE_URL</key>
   <string>https://worldcup.zivalx.com</string>
 </dict>
 ```
@@ -67,15 +67,15 @@ Add an `EnvironmentVariables` dict to the plist:
 Then load it:
 
 ```bash
-launchctl unload ~/Library/LaunchAgents/com.worldcap.daily.plist 2>/dev/null
-launchctl load ~/Library/LaunchAgents/com.worldcap.daily.plist
-launchctl start com.worldcap.daily   # immediate test fire
+launchctl unload ~/Library/LaunchAgents/com.worldcup.daily.plist 2>/dev/null
+launchctl load ~/Library/LaunchAgents/com.worldcup.daily.plist
+launchctl start com.worldcup.daily   # immediate test fire
 ```
 
 Verify it's scheduled:
 
 ```bash
-launchctl list | grep worldcap
+launchctl list | grep worldcup
 ```
 
 ## Caveats
@@ -93,12 +93,12 @@ launchctl list | grep worldcap
 
 ## Logs
 
-- `~/Library/Logs/worldcap-refresh.log` — script output, persistent
-- `/tmp/worldcap-refresh.{stdout,stderr}.log` — launchd's view; ephemeral, cleared on reboot
+- `~/Library/Logs/worldcup-refresh.log` — script output, persistent
+- `/tmp/worldcup-refresh.{stdout,stderr}.log` — launchd's view; ephemeral, cleared on reboot
 
 ## Disable / uninstall
 
 ```bash
-launchctl unload ~/Library/LaunchAgents/com.worldcap.daily.plist
-rm ~/Library/LaunchAgents/com.worldcap.daily.plist
+launchctl unload ~/Library/LaunchAgents/com.worldcup.daily.plist
+rm ~/Library/LaunchAgents/com.worldcup.daily.plist
 ```

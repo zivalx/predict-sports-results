@@ -3,10 +3,10 @@ from datetime import datetime, timedelta, timezone
 import pytest
 from sqlmodel import select
 
-from worldcap.db import get_session, init_db
-from worldcap.enrich.aggregate import aggregate_team_sentiment
-from worldcap.models import NewsItem, SentimentScore, SocialPost, Team
-from worldcap.models.tournament import Competition
+from worldcup.db import get_session, init_db
+from worldcup.enrich.aggregate import aggregate_team_sentiment
+from worldcup.models import NewsItem, SentimentScore, SocialPost, Team
+from worldcup.models.tournament import Competition
 from scripts.seed_competition import seed
 
 

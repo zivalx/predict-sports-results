@@ -1,4 +1,4 @@
-# worldcap — Design Spec
+# worldcup — Design Spec
 
 **Date:** 2026-05-21
 **Status:** Draft for review
@@ -44,7 +44,7 @@ Four-layer service, single Python process, single SQLite database to start.
 
 ```
                   ┌──────────────────────────────────┐
-                  │      worldcap/  (new repo)       │
+                  │      worldcup/  (new repo)       │
                   └──────────────────────────────────┘
                                   │
    ingest/   ──►   enrich/   ──►   model/   ──►   render/   ──►   api/
@@ -265,11 +265,11 @@ These boundaries exist so generalization is additive, not a rewrite:
 ## 11. Repo layout
 
 ```
-worldcap/
+worldcup/
 ├── pyproject.toml
 ├── README.md
-├── docs/specs/2026-05-21-worldcap-design.md   ← this file
-├── src/worldcap/
+├── docs/specs/2026-05-21-worldcup-design.md   ← this file
+├── src/worldcup/
 │   ├── __init__.py
 │   ├── config.py
 │   ├── db.py

@@ -1,7 +1,7 @@
 {
-  "name": "worldcap-wa-bot",
+  "name": "worldcup-wa-bot",
   "version": "0.1.0",
-  "description": "Posts worldcap daily digest to a WhatsApp group",
+  "description": "Posts worldcup daily digest to a WhatsApp group",
   "type": "module",
   "main": "index.js",
   "private": true,

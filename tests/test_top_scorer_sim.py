@@ -3,8 +3,8 @@ from dataclasses import dataclass
 
 import pytest
 
-from worldcap.model.simulator.orchestrator import simulate_tournament
-from worldcap.model.simulator.top_scorer import (
+from worldcup.model.simulator.orchestrator import simulate_tournament
+from worldcup.model.simulator.top_scorer import (
     PlayerEntry,
     sample_iteration_top_scorer,
 )

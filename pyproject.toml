@@ -1,5 +1,5 @@
 [project]
-name = "worldcap"
+name = "worldcup"
 version = "0.1.0"
 description = "World Cup 2026 pre-match forecast feed"
 requires-python = ">=3.12"
@@ -21,7 +21,7 @@ dependencies = [
 ]
 
 [project.scripts]
-worldcap = "worldcap.cli:main"
+worldcup = "worldcup.cli:main"
 
 [project.optional-dependencies]
 dev = [
@@ -37,7 +37,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/worldcap"]
+packages = ["src/worldcup"]
 
 [tool.hatch.metadata]
 allow-direct-references = true
@@ -53,7 +53,7 @@ target-version = "py312"
 [tool.uv.sources]
 # Local dev convenience: when /Users/ziv.a/repos_/collectors/collectors exists,
 # uv uses the editable local checkout instead of the pinned git URL. This lets
-# the user iterate on `connectors` and `worldcap` simultaneously without
+# the user iterate on `connectors` and `worldcup` simultaneously without
 # committing+pushing every change. Other machines just fall through to the
 # git URL in [project.dependencies].
 connectors = { path = "/Users/ziv.a/repos_/collectors/collectors", editable = true }

@@ -3,10 +3,10 @@ from pathlib import Path
 import pytest
 from sqlmodel import select
 
-from worldcap.db import get_session, init_db
-from worldcap.model.elo import INITIAL_RATING
-from worldcap.model.ratings import load_seed_ratings
-from worldcap.models import Team, TeamRating
+from worldcup.db import get_session, init_db
+from worldcup.model.elo import INITIAL_RATING
+from worldcup.model.ratings import load_seed_ratings
+from worldcup.models import Team, TeamRating
 from scripts.seed_competition import seed
 
 

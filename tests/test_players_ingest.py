@@ -3,9 +3,9 @@ from pathlib import Path
 import pytest
 from sqlmodel import select
 
-from worldcap.db import get_session, init_db
-from worldcap.ingest.players import load_seed_players
-from worldcap.models import Player, Team
+from worldcup.db import get_session, init_db
+from worldcup.ingest.players import load_seed_players
+from worldcup.models import Player, Team
 from scripts.seed_competition import seed
 
 

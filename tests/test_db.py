@@ -1,8 +1,8 @@
 import pytest
 from sqlalchemy import text
 
-from worldcap.config import get_settings
-from worldcap.db import get_session, init_db, reset_engine_cache
+from worldcup.config import get_settings
+from worldcup.db import get_session, init_db, reset_engine_cache
 
 
 @pytest.mark.asyncio

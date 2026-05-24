@@ -3,17 +3,17 @@ from datetime import datetime, timedelta, timezone
 import pytest
 from sqlmodel import select
 
-from worldcap.db import get_session, init_db
-from worldcap.model.elo import HOME_ADVANTAGE
-from worldcap.model.per_match import generate_match_forecasts
-from worldcap.models import (
+from worldcup.db import get_session, init_db
+from worldcup.model.elo import HOME_ADVANTAGE
+from worldcup.model.per_match import generate_match_forecasts
+from worldcup.models import (
     ForecastSnapshot,
     Match,
     MatchForecast,
     Team,
     TeamRating,
 )
-from worldcap.models.tournament import Competition
+from worldcup.models.tournament import Competition
 from scripts.seed_competition import seed
 
 

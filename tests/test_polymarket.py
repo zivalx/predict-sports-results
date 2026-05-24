@@ -4,9 +4,9 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from sqlmodel import select
 
-from worldcap.db import get_session, init_db
-from worldcap.ingest.polymarket import ingest_outright_winner, ingest_top_scorer_market
-from worldcap.models import OddsSnapshot, Team
+from worldcup.db import get_session, init_db
+from worldcup.ingest.polymarket import ingest_outright_winner, ingest_top_scorer_market
+from worldcup.models import OddsSnapshot, Team
 from scripts.seed_competition import seed
 
 

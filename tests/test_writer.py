@@ -2,8 +2,8 @@ from pathlib import Path
 
 import pytest
 
-from worldcap.config import get_settings
-from worldcap.render.writer import write_digest
+from worldcup.config import get_settings
+from worldcup.render.writer import write_digest
 
 
 @pytest.mark.asyncio

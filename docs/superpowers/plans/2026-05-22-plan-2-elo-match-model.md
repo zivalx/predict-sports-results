@@ -1,4 +1,4 @@
-# worldcap — Plan 2: Results ingest + Elo + match model
+# worldcup — Plan 2: Results ingest + Elo + match model
 
 > **For agentic workers:** REQUIRED SUB-SKILL: superpowers:subagent-driven-development.
 
@@ -31,7 +31,7 @@ These are folded into **Task 0** (a single cleanup commit) before any new featur
 ## File structure created in this plan
 
 ```
-src/worldcap/
+src/worldcup/
 ├── models/
 │   ├── tournament.py        # add MatchEvent
 │   └── forecast.py          # add MatchForecast; field rename in ForecastSnapshot

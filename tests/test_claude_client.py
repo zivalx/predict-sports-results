@@ -1,6 +1,6 @@
 import pytest
 
-from worldcap.enrich.claude_client import (
+from worldcup.enrich.claude_client import (
     ClaudeCallResult,
     FakeClaudeClient,
     TokenBudgetExceeded,

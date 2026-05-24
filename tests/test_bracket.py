@@ -3,7 +3,7 @@ from dataclasses import dataclass
 
 import pytest
 
-from worldcap.model.simulator.bracket import simulate_knockout
+from worldcup.model.simulator.bracket import simulate_knockout
 
 
 @dataclass(frozen=True)

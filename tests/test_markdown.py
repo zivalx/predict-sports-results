@@ -3,12 +3,12 @@ from datetime import datetime, timedelta, timezone
 import pytest
 from sqlmodel import select
 
-from worldcap.db import get_session, init_db
-from worldcap.model.naive import generate_naive_forecast
-from worldcap.model.per_match import generate_match_forecasts
-from worldcap.models import OddsSnapshot, Team, TeamRating, Player, TopScorerForecast
-from worldcap.models.tournament import Competition, Match
-from worldcap.render.markdown import render_digest_markdown
+from worldcup.db import get_session, init_db
+from worldcup.model.naive import generate_naive_forecast
+from worldcup.model.per_match import generate_match_forecasts
+from worldcup.models import OddsSnapshot, Team, TeamRating, Player, TopScorerForecast
+from worldcup.models.tournament import Competition, Match
+from worldcup.render.markdown import render_digest_markdown
 from scripts.seed_competition import seed
 
 

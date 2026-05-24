@@ -1,8 +1,8 @@
 import pytest
 from sqlmodel import select
 
-from worldcap.db import get_session, init_db
-from worldcap.models import Competition, TournamentFormat
+from worldcup.db import get_session, init_db
+from worldcup.models import Competition, TournamentFormat
 from scripts.seed_competition import seed
 
 

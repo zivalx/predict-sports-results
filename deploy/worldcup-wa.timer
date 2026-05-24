@@ -1,0 +1,10 @@
+[Unit]
+Description=worldcup WhatsApp daily post timer
+
+[Timer]
+OnCalendar=*-*-* 09:05:00
+Persistent=true
+Unit=worldcup-wa.service
+
+[Install]
+WantedBy=timers.target
