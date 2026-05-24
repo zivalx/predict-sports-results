@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}{{ home_name }} vs {{ away_name }} · worldcap{% endblock %}
+{% block content %}
+<div class="section-header">
+  <h2>{{ home_name }} vs {{ away_name }}</h2>
+  <span class="timestamp">
+    {{ kickoff_utc.strftime('%Y-%m-%d %H:%M UTC') }}
+    · {{ 'Group ' + group_label if group_label else stage }}
+    · {{ status }}
+  </span>
+</div>
+
+{% if status == "FT" and home_score is not none and away_score is not none %}
+<section>
+  <p><strong>Final score:</strong> {{ home_name }} {{ home_score }} — {{ away_score }} {{ away_name }}</p>
+</section>
+{% endif %}
+
+{% if p_home is not none %}
+<section>
+  <table>
+    <thead>
+      <tr><th></th><th>{{ home_name }}</th><th>Draw</th><th>{{ away_name }}</th><th>Edge</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Our forecast</strong></td>
+        <td>{{ '%.1f' % (p_home * 100) }}%</td>
+        <td>{{ '%.1f' % (p_draw * 100) }}%</td>
+        <td>{{ '%.1f' % (p_away * 100) }}%</td>
+        <td class="{% if edge_vs_poly > 0 %}edge-positive{% elif edge_vs_poly < 0 %}edge-negative{% endif %}">
+          {% if p_home_poly is not none %}{{ '%+.1fpp' % (edge_vs_poly * 100) }}{% else %}—{% endif %}
+        </td>
+      </tr>
+      <tr>
+        <td><strong>Polymarket</strong></td>
+        <td>{% if p_home_poly is not none %}{{ '%.1f' % (p_home_poly * 100) }}%{% else %}—{% endif %}</td>
+        <td>{% if p_draw_poly is not none %}{{ '%.1f' % (p_draw_poly * 100) }}%{% else %}—{% endif %}</td>
+        <td>{% if p_away_poly is not none %}{{ '%.1f' % (p_away_poly * 100) }}%{% else %}—{% endif %}</td>
+        <td></td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+{% endif %}
+
+{% if rationale_md %}
+<section class="rationale">{{ rationale_md }}</section>
+{% endif %}
+
+{% if home_headlines or away_headlines %}
+<section>
+  <div class="section-header"><h2>Recent headlines</h2></div>
+  {% if home_headlines %}
+  <h3>{{ home_name }}</h3>
+  <ul class="headlines">{% for h in home_headlines %}<li>{{ h }}</li>{% endfor %}</ul>
+  {% endif %}
+  {% if away_headlines %}
+  <h3>{{ away_name }}</h3>
+  <ul class="headlines">{% for h in away_headlines %}<li>{{ h }}</li>{% endfor %}</ul>
+  {% endif %}
+</section>
+{% endif %}
+
+<p><a href="/">← back to dashboard</a></p>
+{% endblock %}

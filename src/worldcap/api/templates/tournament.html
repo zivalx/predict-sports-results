@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}worldcap · tournament outlook{% endblock %}
+{% block content %}
+<section>
+  <div class="section-header">
+    <h2>Tournament outlook — {{ competition_name }}</h2>
+  </div>
+
+  {% if rows %}
+  <table>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Team</th>
+        <th><a href="?order_by=p_champion">Champion%</a></th>
+        <th><a href="?order_by=p_runner_up">Runner-up%</a></th>
+        <th><a href="?order_by=p_semi">Semi%</a></th>
+        <th><a href="?order_by=p_top_group">Top of group%</a></th>
+        <th>Polymarket</th>
+        <th><a href="?order_by=edge_vs_poly">Edge</a></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in rows %}
+      <tr>
+        <td>{{ row.rank }}</td>
+        <td>{{ row.team_name }}</td>
+        <td>{{ '%.1f' % (row.p_champion * 100) }}%</td>
+        <td>{{ '%.1f' % (row.p_runner_up * 100) }}%</td>
+        <td>{{ '%.1f' % (row.p_semi * 100) }}%</td>
+        <td>{{ '%.1f' % (row.p_top_group * 100) }}%</td>
+        <td>{{ '%.1f' % (row.poly_p_champion * 100) }}%</td>
+        <td class="{% if row.edge_vs_poly > 0 %}edge-positive{% elif row.edge_vs_poly < 0 %}edge-negative{% endif %}">
+          {{ '%+.1fpp' % (row.edge_vs_poly * 100) }}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <p class="timestamp">Sorted by {{ order_by }} · click a header to re-sort</p>
+  {% else %}
+  <p>No tournament forecast yet. Run a refresh to populate this page.</p>
+  {% endif %}
+</section>
+{% endblock %}

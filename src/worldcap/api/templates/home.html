@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}worldcap · home{% endblock %}
+{% block content %}
+<section>
+  <div class="section-header">
+    <h2>{{ competition_name }} · {{ phase_label }}</h2>
+    {% if snapshot_ts %}
+    <span class="timestamp">snapshot · {{ snapshot_ts.strftime('%Y-%m-%d %H:%M UTC') }}</span>
+    {% endif %}
+  </div>
+
+  <div id="refresh-area">
+    {% include "_refresh_button.html" %}
+  </div>
+</section>
+
+<section>
+  <div class="section-header">
+    <h2>Top contenders</h2>
+    <a href="/tournament" class="timestamp">see all →</a>
+  </div>
+  {% if contenders %}
+  <table>
+    <thead>
+      <tr><th>#</th><th>Team</th><th>P(champion)</th><th>Polymarket</th><th>Edge</th></tr>
+    </thead>
+    <tbody>
+      {% for row in contenders %}
+      <tr>
+        <td>{{ row.rank }}</td>
+        <td>{{ row.team_name }}</td>
+        <td>{{ '%.1f' % (row.p_champion * 100) }}%</td>
+        <td>{{ '%.1f' % (row.poly_p_champion * 100) }}%</td>
+        <td class="{% if row.edge_vs_poly > 0 %}edge-positive{% elif row.edge_vs_poly < 0 %}edge-negative{% endif %}">
+          {{ '%+.1fpp' % (row.edge_vs_poly * 100) }}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p>No snapshot yet. Trigger a refresh to populate the dashboard.</p>
+  {% endif %}
+</section>
+
+<section>
+  <div class="section-header">
+    <h2>Next matches</h2>
+  </div>
+  {% if today_matches %}
+  <ul class="headlines">
+    {% for m in today_matches %}
+    <li>
+      <a href="/match/{{ m.match_id }}">{{ m.home_name }} vs {{ m.away_name }}</a>
+      · {{ m.kickoff_utc.strftime('%Y-%m-%d %H:%M UTC') }}
+      · {{ 'Group ' + m.group_label if m.group_label else m.stage }}
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p>No upcoming fixture-known matches.</p>
+  {% endif %}
+</section>
+{% endblock %}

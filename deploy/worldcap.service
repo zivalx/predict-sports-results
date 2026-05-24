@@ -1,0 +1,23 @@
+[Unit]
+Description=worldcap — World Cup 2026 forecast service
+After=network.target
+
+[Service]
+Type=simple
+User=worldcap
+Group=worldcap
+WorkingDirectory=/opt/worldcap
+EnvironmentFile=/opt/worldcap/.env
+ExecStart=/opt/worldcap/.venv/bin/uvicorn worldcap.api.app:app --host 127.0.0.1 --port 8765
+Restart=on-failure
+RestartSec=5
+
+# Hardening — sensible defaults for a single-purpose service
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=/opt/worldcap
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target

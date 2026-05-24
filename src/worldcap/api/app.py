@@ -1,10 +1,16 @@
 import os
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
+from pathlib import Path
 
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
+from fastapi_mcp import FastApiMCP
 from sqlmodel import select
 
+from worldcap.api.dashboard import router as dashboard_router
+from worldcap.api.mcp_endpoints import mcp_router
 from worldcap.config import get_settings
 from worldcap.db import get_session
 from worldcap.jobs.refresh import run_refresh
@@ -58,6 +64,18 @@ def build_app(football_client=None, poly_collector=None) -> FastAPI:
 
     app = FastAPI(title="worldcap", lifespan=lifespan)
 
+    # Static files and templates
+    _this_dir = Path(__file__).parent
+    app.mount("/static", StaticFiles(directory=_this_dir / "static"), name="static")
+    templates = Jinja2Templates(directory=_this_dir / "templates")
+    app.state.templates = templates
+
+    # Dashboard routes
+    app.include_router(dashboard_router)
+
+    # MCP-friendly JSON endpoints
+    app.include_router(mcp_router)
+
     @app.get("/healthz")
     async def healthz():
         return {"status": "ok"}
@@ -107,6 +125,10 @@ def build_app(football_client=None, poly_collector=None) -> FastAPI:
                     for f in forecasts
                 ],
             }
+
+    # Mount MCP server — auto-exposes API endpoints as MCP tools
+    mcp = FastApiMCP(app, name="worldcap", description="World Cup 2026 forecasts and analysis")
+    mcp.mount_http()
 
     return app
 
