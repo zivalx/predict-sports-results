@@ -1,8 +1,11 @@
 import os
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
+from pathlib import Path
 
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 from sqlmodel import select
 
 from worldcap.config import get_settings
@@ -57,6 +60,12 @@ def build_app(football_client=None, poly_collector=None) -> FastAPI:
                 await football_client.aclose()
 
     app = FastAPI(title="worldcap", lifespan=lifespan)
+
+    # Static files and templates
+    _this_dir = Path(__file__).parent
+    app.mount("/static", StaticFiles(directory=_this_dir / "static"), name="static")
+    templates = Jinja2Templates(directory=_this_dir / "templates")
+    app.state.templates = templates
 
     @app.get("/healthz")
     async def healthz():

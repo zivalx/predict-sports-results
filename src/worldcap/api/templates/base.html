@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}worldcap{% endblock %}</title>
+  <link rel="stylesheet" href="/static/dashboard.css">
+  <script src="https://unpkg.com/htmx.org@1.9.12" defer></script>
+</head>
+<body>
+  <header>
+    <nav>
+      <h1><a href="/">worldcap</a></h1>
+      <ul>
+        <li><a href="/">Home</a></li>
+        <li><a href="/tournament">Tournament</a></li>
+        <li><a href="/golden-boot">Golden Boot</a></li>
+      </ul>
+    </nav>
+  </header>
+  <main>
+    {% block content %}{% endblock %}
+  </main>
+  <footer>
+    <small>worldcap · World Cup 2026 forecast feed</small>
+  </footer>
+</body>
+</html>
