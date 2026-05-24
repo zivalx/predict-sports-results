@@ -1,0 +1,17 @@
+{#
+  Edge chip — small inline pill.
+  Args:
+    edge_pp — float in percentage points (e.g. 3.2 or -1.8)
+    show_dash — if true and edge_pp is None/zero, render "—"
+#}
+{% if edge_pp is not none %}
+  {% if edge_pp > 0.5 %}
+    <span class="edge-chip positive">+{{ '%.1f' % edge_pp }}pp</span>
+  {% elif edge_pp < -0.5 %}
+    <span class="edge-chip negative">{{ '%.1f' % edge_pp }}pp</span>
+  {% else %}
+    <span class="edge-chip neutral">{{ '%+.1f' % edge_pp }}pp</span>
+  {% endif %}
+{% else %}
+  <span class="muted small">—</span>
+{% endif %}

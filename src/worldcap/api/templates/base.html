@@ -8,21 +8,30 @@
   <script src="https://unpkg.com/htmx.org@1.9.12" defer></script>
 </head>
 <body>
-  <header>
-    <nav>
-      <h1><a href="/">worldcap</a></h1>
-      <ul>
+
+  <header class="site-header">
+    <nav class="nav-inner">
+      <a href="/" class="nav-brand">
+        <span class="brand-mark">WC</span>worldcap
+      </a>
+      <ul class="nav-links">
         <li><a href="/">Home</a></li>
         <li><a href="/tournament">Tournament</a></li>
         <li><a href="/golden-boot">Golden Boot</a></li>
       </ul>
     </nav>
   </header>
-  <main>
+
+  <main class="main-content">
     {% block content %}{% endblock %}
   </main>
-  <footer>
-    <small>worldcap · World Cup 2026 forecast feed</small>
+
+  <footer class="site-footer">
+    <span>worldcap &middot; World Cup 2026 forecast feed</span>
+    {% if snapshot_ts is defined and snapshot_ts %}
+      &middot; <span class="timestamp">last updated {{ snapshot_ts.strftime('%Y-%m-%d %H:%M UTC') }}</span>
+    {% endif %}
   </footer>
+
 </body>
 </html>

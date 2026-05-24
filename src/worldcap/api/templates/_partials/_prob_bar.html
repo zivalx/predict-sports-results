@@ -1,0 +1,10 @@
+{#
+  Single probability bar.
+  Args:
+    percent  — float 0-100
+    color    — optional CSS class: "positive", "negative", "home", "draw", "away"
+               defaults to accent color when omitted
+#}
+<div class="prob-bar" role="progressbar" aria-valuenow="{{ percent | int }}" aria-valuemin="0" aria-valuemax="100">
+  <div class="prob-bar-fill {% if color is defined and color %}{{ color }}{% endif %}" style="width: {{ percent }}%"></div>
+</div>

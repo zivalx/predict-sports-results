@@ -1,0 +1,23 @@
+{#
+  Contender card for top-5 list.
+  Args: row — object with .rank, .team_name, .p_champion, .poly_p_champion, .edge_vs_poly
+#}
+{% set pct = row.p_champion * 100 %}
+{% set edge_pp = row.edge_vs_poly * 100 %}
+<div class="contender-card">
+  <span class="rank-chip {% if row.rank <= 3 %}top-3{% endif %}">{{ row.rank }}</span>
+
+  <span class="contender-name">{{ row.team_name }}</span>
+
+  <span class="contender-prob">{{ '%.1f' % pct }}%</span>
+
+  <div class="contender-bar-wrap">
+    {% with percent=pct %}
+      {% include "_partials/_prob_bar.html" %}
+    {% endwith %}
+  </div>
+
+  {% with edge_pp=edge_pp %}
+    {% include "_partials/_edge_chip.html" %}
+  {% endwith %}
+</div>

@@ -1,8 +1,12 @@
-<button
-  hx-post="/refresh"
-  hx-target="#refresh-area"
-  hx-swap="innerHTML"
-  hx-indicator="#refresh-spinner">
-  Refresh now
-</button>
-<span id="refresh-spinner" class="htmx-indicator timestamp">refreshing…</span>
+<div class="refresh-wrap">
+  <button
+    class="btn-refresh"
+    hx-post="/refresh"
+    hx-target="#refresh-area"
+    hx-swap="innerHTML"
+    hx-indicator="#refresh-spinner">
+    <span class="spinner"></span>
+    <span class="btn-label">Refresh now</span>
+  </button>
+  <span id="refresh-spinner" class="htmx-indicator timestamp">refreshing&hellip;</span>
+</div>

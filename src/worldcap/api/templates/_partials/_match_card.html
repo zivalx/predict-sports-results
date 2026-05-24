@@ -1,0 +1,41 @@
+{#
+  Match card — used on home page and anywhere a match preview is needed.
+  Args: m — dict/object with match_id, home_name, away_name, kickoff_utc,
+             group_label, stage, and optionally p_home, p_draw, p_away,
+             p_home_poly, p_draw_poly, p_away_poly, edge_vs_poly
+#}
+{% set stage_label = ('Group ' + m.group_label) if m.group_label else m.stage %}
+<a href="/match/{{ m.match_id }}" class="match-card" aria-label="{{ m.home_name }} vs {{ m.away_name }}">
+  <div class="match-card-meta">
+    <span>{{ m.kickoff_utc.strftime('%b %-d · %H:%M UTC') }}</span>
+    <span class="stage-label">{{ stage_label }}</span>
+  </div>
+
+  <div class="match-card-teams">
+    <span class="match-team-name home">{{ m.home_name }}</span>
+    <span class="match-vs">vs</span>
+    <span class="match-team-name away">{{ m.away_name }}</span>
+  </div>
+
+  {% if m.p_home is defined and m.p_home is not none %}
+  <div class="match-card-probs">
+    {% with p_home=m.p_home * 100, p_draw=m.p_draw * 100, p_away=m.p_away * 100, home_name=m.home_name, away_name=m.away_name %}
+      {% include "_partials/_prob_bar_3way.html" %}
+    {% endwith %}
+  </div>
+
+  {% if m.edge_vs_poly is defined and m.edge_vs_poly is not none %}
+  <div class="match-card-footer">
+    <span class="timestamp">Polymarket edge:</span>
+    {% with edge_pp=m.edge_vs_poly * 100 %}
+      {% include "_partials/_edge_chip.html" %}
+    {% endwith %}
+  </div>
+  {% endif %}
+
+  {% else %}
+  <div class="match-card-probs">
+    <div class="timestamp small" style="padding: 0 0 0.625rem;">No forecast yet — click for details</div>
+  </div>
+  {% endif %}
+</a>

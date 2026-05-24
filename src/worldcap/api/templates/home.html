@@ -1,64 +1,67 @@
 {% extends "base.html" %}
 {% block title %}worldcap · home{% endblock %}
 {% block content %}
-<section>
-  <div class="section-header">
-    <h2>{{ competition_name }} · {{ phase_label }}</h2>
+
+{# ── Hero block ──────────────────────────────────────────────── #}
+<div class="hero">
+  <div class="hero-eyebrow">Live Forecast Dashboard</div>
+  <h1 class="hero-title">FIFA World Cup 2026</h1>
+  <div class="hero-subtitle">
+    {% if phase_label %}
+      <span>{{ phase_label }}</span>
+      <span class="sep">·</span>
+    {% endif %}
     {% if snapshot_ts %}
-    <span class="timestamp">snapshot · {{ snapshot_ts.strftime('%Y-%m-%d %H:%M UTC') }}</span>
+      <span class="timestamp">Snapshot &middot; {{ snapshot_ts.strftime('%Y-%m-%d %H:%M UTC') }}</span>
+    {% else %}
+      <span class="timestamp">No snapshot yet</span>
     {% endif %}
   </div>
 
   <div id="refresh-area">
     {% include "_refresh_button.html" %}
   </div>
-</section>
+</div>
 
-<section>
+{# ── Top contenders ──────────────────────────────────────────── #}
+<section style="margin-bottom: 2.5rem;">
   <div class="section-header">
-    <h2>Top contenders</h2>
-    <a href="/tournament" class="timestamp">see all →</a>
+    <h2 class="section-title">Top contenders</h2>
+    <a href="/tournament" class="section-link">see all →</a>
   </div>
+
   {% if contenders %}
-  <table>
-    <thead>
-      <tr><th>#</th><th>Team</th><th>P(champion)</th><th>Polymarket</th><th>Edge</th></tr>
-    </thead>
-    <tbody>
-      {% for row in contenders %}
-      <tr>
-        <td>{{ row.rank }}</td>
-        <td>{{ row.team_name }}</td>
-        <td>{{ '%.1f' % (row.p_champion * 100) }}%</td>
-        <td>{{ '%.1f' % (row.poly_p_champion * 100) }}%</td>
-        <td class="{% if row.edge_vs_poly > 0 %}edge-positive{% elif row.edge_vs_poly < 0 %}edge-negative{% endif %}">
-          {{ '%+.1fpp' % (row.edge_vs_poly * 100) }}
-        </td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+  <div class="contender-list">
+    {% for row in contenders %}
+      {% include "_partials/_contender_card.html" %}
+    {% endfor %}
+  </div>
   {% else %}
-  <p>No snapshot yet. Trigger a refresh to populate the dashboard.</p>
+  <div class="empty-state">
+    <div class="empty-state-icon">&#9670;</div>
+    <p>No snapshot yet. Trigger a refresh to populate the dashboard.</p>
+  </div>
   {% endif %}
 </section>
 
+{# ── Next matches ────────────────────────────────────────────── #}
 <section>
   <div class="section-header">
-    <h2>Next matches</h2>
+    <h2 class="section-title">Next matches</h2>
   </div>
+
   {% if today_matches %}
-  <ul class="headlines">
+  <div class="match-cards">
     {% for m in today_matches %}
-    <li>
-      <a href="/match/{{ m.match_id }}">{{ m.home_name }} vs {{ m.away_name }}</a>
-      · {{ m.kickoff_utc.strftime('%Y-%m-%d %H:%M UTC') }}
-      · {{ 'Group ' + m.group_label if m.group_label else m.stage }}
-    </li>
+      {% include "_partials/_match_card.html" %}
     {% endfor %}
-  </ul>
+  </div>
   {% else %}
-  <p>No upcoming fixture-known matches.</p>
+  <div class="empty-state">
+    <div class="empty-state-icon">&#8987;</div>
+    <p>No upcoming fixture-known matches.</p>
+  </div>
   {% endif %}
 </section>
+
 {% endblock %}
