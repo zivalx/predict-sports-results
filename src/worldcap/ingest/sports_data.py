@@ -17,6 +17,20 @@ _STAGE_MAP = {
     "THIRD_PLACE": "3rd",
 }
 
+# football-data.org statuses → our canonical lifecycle.
+# Source: https://docs.football-data.org/general/v4/lookup_tables.html
+_STATUS_MAP = {
+    "SCHEDULED": "SCHEDULED",   # scheduled but no specific kickoff time yet
+    "TIMED": "SCHEDULED",       # scheduled with confirmed kickoff — still "upcoming" for us
+    "IN_PLAY": "LIVE",
+    "PAUSED": "LIVE",           # half-time / VAR pause
+    "FINISHED": "FT",           # full time, result final
+    "AWARDED": "FT",            # awarded result (e.g., walk-over)
+    "SUSPENDED": "POSTPONED",
+    "POSTPONED": "POSTPONED",
+    "CANCELLED": "CANCELLED",
+}
+
 
 class TeamDTO(BaseModel):
     external_id: int
@@ -76,13 +90,15 @@ class FootballDataClient:
             group_raw = m.get("group")
             group_label = group_raw.removeprefix("GROUP_") if group_raw else None
             score = m.get("score", {}).get("fullTime", {})
+            raw_status = m.get("status", "SCHEDULED")
+            normalised_status = _STATUS_MAP.get(raw_status, raw_status)
             out.append(
                 FixtureDTO(
                     external_id=m["id"],
                     stage=stage,
                     group_label=group_label,
                     kickoff_utc=datetime.fromisoformat(m["utcDate"].replace("Z", "+00:00")),
-                    status=m.get("status", "SCHEDULED"),
+                    status=normalised_status,
                     home_external_id=(m.get("homeTeam") or {}).get("id"),
                     away_external_id=(m.get("awayTeam") or {}).get("id"),
                     home_score=score.get("home"),

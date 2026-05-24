@@ -1,18 +1,51 @@
 # worldcap MCP via Cloudflare Tunnel (private, shared with friends)
 
-Expose your locally-running worldcap (on Mac, port 8765) as a private subdomain
-like `api.zivalx.com` (or `mcp.zivalx.com`), gated by Cloudflare Access so only
-emails on your allowlist can reach it.
+Expose your locally-running worldcap (on Mac or Windows, port 8765) as a
+private subdomain like `api.zivalx.com` (or `mcp.zivalx.com`), gated by
+Cloudflare Access so only emails on your allowlist can reach it.
 
 This setup is the lightweight alternative to running a separate VPS. The
-forecast pipeline still runs on your Mac and pushes the public dashboard to
-Cloudflare Pages (see `deploy/macos/README.md`); this just exposes the live
-HTTP API for agent queries.
+forecast pipeline still runs on your local machine and pushes the public
+dashboard to Cloudflare Pages (see `deploy/macos/README.md` or
+`deploy/windows/README.md`); this just exposes the live HTTP API for agent
+queries.
+
+## Windows-specific setup
+
+Installing and running `cloudflared` on Windows differs slightly from macOS:
+
+- **Download**: grab `cloudflared-windows-amd64.exe` from
+  https://github.com/cloudflare/cloudflared/releases/latest and place it
+  somewhere on your `PATH` (e.g. `C:\Program Files\cloudflared\cloudflared.exe`).
+  Alternatively, install via winget:
+  ```powershell
+  winget install --id Cloudflare.cloudflared
+  ```
+- **Authenticate + create tunnel + DNS**: run the same commands as macOS
+  (Steps 1–3 below), just replace `cloudflared` with `cloudflared.exe` if
+  it's not on your `PATH`.
+- **Install as a Windows service** (Step 7 equivalent):
+  ```powershell
+  # Run this once from an elevated (Admin) PowerShell:
+  cloudflared.exe service install --token YOUR_TUNNEL_TOKEN
+  ```
+  This registers `cloudflared` as a Windows Service that starts automatically
+  on boot — no launchd needed. Verify in `services.msc` that
+  "Cloudflare Tunnel" is running.
+- **Config file location**: on Windows, `cloudflared` reads from
+  `%USERPROFILE%\.cloudflared\config.yml` (same YAML structure as macOS).
+- **Tunnel credentials**: stored in `%USERPROFILE%\.cloudflared\<UUID>.json`
+  (macOS stores them in `~/.cloudflared/`).
+
+Everything else — authentication, tunnel creation, DNS routing, CF Access
+policy — is identical on Windows and macOS. Continue with Step 1 below.
 
 ## Prerequisites
 
 - Cloudflare account managing zivalx.com (you already have this for Pages)
-- `cloudflared` installed: `brew install cloudflared`
+- `cloudflared` installed:
+  - **macOS**: `brew install cloudflared`
+  - **Windows**: see Windows-specific setup above
 - worldcap running locally on port 8765
 
 ## Step 1: Authenticate cloudflared
