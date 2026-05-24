@@ -46,3 +46,16 @@ class MatchForecast(SQLModel, table=True):
     edge_vs_poly: float = 0.0
     model_version: str = "elo-v0"
     rationale_md: Optional[str] = None
+
+
+class TopScorerForecast(SQLModel, table=True):
+    __tablename__ = "top_scorer_forecast"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    snapshot_id: int = Field(foreign_key="forecast_snapshot.id", index=True)
+    player_id: int = Field(foreign_key="player.id", index=True)
+    p_golden_boot: float
+    expected_goals: float
+    poly_p_top_scorer: Optional[float] = None
+    edge_vs_poly: float = 0.0
+    model_version: str = "top-scorer-v0"

@@ -65,3 +65,19 @@ def test_iterations_count_is_recorded():
     ratings = {t: 1500.0 for t in teams}
     result = simulate_tournament(groups, ratings, n_iterations=123, seed=42)
     assert result.n_iterations == 123
+
+
+def test_expected_matches_played_reflects_strength():
+    groups, teams = _wc_groups()
+    ratings = {t: 1400.0 for t in teams}
+    dominant = teams[0]
+    ratings[dominant] = 2200.0  # Champion candidate
+    weakest = teams[3]
+    ratings[weakest] = 1100.0  # Group cellar
+
+    result = simulate_tournament(groups, ratings, n_iterations=500, seed=42)
+    em_dominant = result.expected_matches_played(dominant)
+    em_weakest = result.expected_matches_played(weakest)
+    # Dominant team plays close to 8 matches (champion); weak team often only 3-4.
+    assert em_dominant > 6.0
+    assert em_weakest < 5.0

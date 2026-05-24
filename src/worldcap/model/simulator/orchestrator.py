@@ -7,18 +7,22 @@ Given 12 groups (each a list of 4 team handles) + a rating lookup, this:
     - seed 32-team bracket: alternate 1st/2nd from each group + 8 best 3rds
     - simulate knockout
     - tally champion / runner-up / semifinalist / top-of-group counts
+    - track per-team rounds reached to compute expected matches played
+    - [optional] sample top-scorer goals per watchlist player, identify winner
 
 Returns a SimulationResult that exposes `p_champion(team)`, `p_runner_up(team)`,
-`p_semi(team)`, `p_top_group(team)`.
+`p_semi(team)`, `p_top_group(team)`, `expected_matches_played(team)`,
+and optionally `p_top_scorer(player)`, `expected_goals(player)`.
 """
 
 import random
-from collections import Counter
+from collections import Counter, defaultdict
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Optional
 
 from worldcap.model.simulator.bracket import simulate_knockout
 from worldcap.model.simulator.group_stage import simulate_group
+from worldcap.model.simulator.top_scorer import PlayerEntry, sample_iteration_top_scorer
 
 
 # We re-rank 3rd-placed teams using the same priors as inside a group, so we
@@ -28,6 +32,24 @@ from worldcap.model.simulator.group_stage import simulate_group
 # place from a stronger group is treated as equivalent to a 3rd from a weaker one.
 # A future refinement could re-aggregate points/GD/GF.
 
+# Per-team matches played by round reached.
+# "group" = didn't reach R32 (3 matches)
+# "R32" = lost in R32 (4 matches: 3 group + 1 R32)
+# "R16" = lost in R16 (5 matches)
+# ... etc ...
+# "F" = reached final, won or lost (8 matches: 3 group + R32 + R16 + QF + SF + F)
+# "champion" = won final (8 matches)
+_MATCHES_PER_ROUND = {
+    "group": 3,
+    "R32": 4,
+    "R16": 5,
+    "QF": 6,
+    "SF": 7,
+    "F": 8,
+    "champion": 8,
+}
+
+
 @dataclass
 class SimulationResult:
     n_iterations: int
@@ -35,6 +57,11 @@ class SimulationResult:
     _runner_up_counts: Counter = field(default_factory=Counter)
     _semi_counts: Counter = field(default_factory=Counter)
     _top_group_counts: Counter = field(default_factory=Counter)
+    # Sum of "matches played in this iteration" per team across iterations.
+    _matches_played_total: dict = field(default_factory=lambda: defaultdict(int))
+    # Top-scorer tracking: winner counts and total goals per player
+    _top_scorer_counts: Counter = field(default_factory=Counter)
+    _goals_total: dict = field(default_factory=lambda: defaultdict(int))
 
     def p_champion(self, team: Any) -> float:
         return self._champion_counts.get(team, 0) / self.n_iterations
@@ -47,6 +74,18 @@ class SimulationResult:
 
     def p_top_group(self, team: Any) -> float:
         return self._top_group_counts.get(team, 0) / self.n_iterations
+
+    def expected_matches_played(self, team: Any) -> float:
+        """Mean tournament matches played across iterations."""
+        return self._matches_played_total.get(team, 0) / self.n_iterations
+
+    def p_top_scorer(self, player: Any) -> float:
+        """Probability a player wins the Golden Boot across all iterations."""
+        return self._top_scorer_counts.get(player, 0) / self.n_iterations
+
+    def expected_goals(self, player: Any) -> float:
+        """Mean tournament goals across all iterations."""
+        return self._goals_total.get(player, 0) / self.n_iterations
 
 
 def _pick_best_third_placed(third_placed_per_iter: list[Any], k: int = 8) -> list[Any]:
@@ -83,7 +122,8 @@ def simulate_tournament(
     groups: list[list[Any]],
     ratings_by_team: dict[Any, float],
     n_iterations: int = 10_000,
-    seed: int | None = None,
+    seed: Optional[int] = None,
+    players: Optional[list[PlayerEntry]] = None,
 ) -> SimulationResult:
     """Run N iterations and aggregate per-team probabilities."""
     if len(groups) != 12:
@@ -94,6 +134,8 @@ def simulate_tournament(
 
     master_rng = random.Random(seed)
     result = SimulationResult(n_iterations=n_iterations)
+
+    all_teams = [t for g in groups for t in g]
 
     for _ in range(n_iterations):
         # Fresh per-iteration rng deterministically derived from master
@@ -115,5 +157,20 @@ def simulate_tournament(
             result._semi_counts[t] += 1
         for standings in group_standings:
             result._top_group_counts[standings[0]] += 1
+
+        # Per-team rounds → matches played
+        rounds_reached = ko["rounds_reached"]
+        team_round = {}
+        for t in all_teams:
+            team_round[t] = rounds_reached.get(t, "group")
+            result._matches_played_total[t] += _MATCHES_PER_ROUND[team_round[t]]
+
+        # Optional: sample top-scorer for this iteration
+        if players:
+            winner, goals = sample_iteration_top_scorer(players, team_round, rng=iter_rng)
+            if winner is not None:
+                result._top_scorer_counts[winner] += 1
+            for p_handle, g in goals.items():
+                result._goals_total[p_handle] += g
 
     return result

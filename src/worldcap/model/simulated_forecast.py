@@ -19,11 +19,13 @@ from sqlmodel import select
 from worldcap.config import get_settings
 from worldcap.db import get_session
 from worldcap.model.elo import INITIAL_RATING
-from worldcap.model.simulator.orchestrator import simulate_tournament
+from worldcap.model.simulator.orchestrator import SimulationResult, simulate_tournament
+from worldcap.model.simulator.top_scorer import PlayerEntry
 from worldcap.models import (
     Competition,
     ForecastSnapshot,
     OddsSnapshot,
+    Player,
     Team,
     TeamRating,
     TournamentForecast,
@@ -65,8 +67,12 @@ async def generate_simulated_forecast(
     trigger: str = "manual",
     n_iterations: int = 10_000,
     seed: int | None = None,
-) -> ForecastSnapshot:
-    """Run the Monte Carlo simulator and persist tournament-level forecasts."""
+) -> tuple[ForecastSnapshot, SimulationResult | None]:
+    """Run the Monte Carlo simulator and persist tournament-level forecasts.
+
+    Returns (snapshot, sim_result) where sim_result is None if the competition
+    isn't fully seeded.
+    """
     settings = get_settings()
     now = datetime.now(timezone.utc)
 
@@ -96,9 +102,25 @@ async def generate_simulated_forecast(
             session.add(snap)
             await session.commit()
             await session.refresh(snap)
-            return snap
+            return snap, None
 
         ratings_for_sim = {t: ratings_by_team_id.get(t.id, INITIAL_RATING) for t in teams}
+
+        # Load watchlist players and build PlayerEntry list
+        players_rows = (await session.execute(
+            select(Player).where(Player.is_watchlist == True)
+        )).scalars().all()
+        team_by_id = {t.id: t for t in teams}
+        player_entries: list[PlayerEntry] = []
+        for p in players_rows:
+            team = team_by_id.get(p.team_id)
+            if team is None:
+                continue
+            player_entries.append(PlayerEntry(
+                player_handle=p.id,  # use DB id as the hashable handle
+                team=team,
+                goals_per_90=p.goals_per_90,
+            ))
 
         # Polymarket outright snapshot
         poly = (await session.execute(
@@ -115,6 +137,7 @@ async def generate_simulated_forecast(
         ratings_for_sim,
         n_iterations=n_iterations,
         seed=seed,
+        players=player_entries,
     )
 
     # Persist snapshot + forecasts
@@ -149,4 +172,4 @@ async def generate_simulated_forecast(
             ))
         await session.commit()
         await session.refresh(snap)
-    return snap
+    return snap, sim_result

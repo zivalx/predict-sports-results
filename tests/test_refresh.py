@@ -239,3 +239,60 @@ async def test_run_refresh_full_wc_writes_rationales(
     rationales = [f for f in forecasts if f.rationale_md]
     assert len(rationales) >= 1
     assert "analytical paragraph" in rationales[0].rationale_md
+
+
+@pytest.mark.asyncio
+async def test_run_refresh_full_wc_writes_top_scorer_forecasts(
+    fake_full_wc_football_client,
+    fake_poly_collector,
+):
+    from worldcap.models import Player, TopScorerForecast
+
+    await init_db()
+    await seed()
+
+    as_of = datetime(2026, 6, 5, tzinfo=timezone.utc)
+
+    # First run the pipeline once to seed the 48 teams via the fixtures ingest
+    # (we need them in the DB before adding Player rows that FK to them).
+    snap0 = await run_refresh(
+        trigger="manual",
+        football_client=fake_full_wc_football_client,
+        poly_collector=fake_poly_collector,
+        as_of=as_of,
+    )
+    async with get_session() as session:
+        teams = (await session.execute(select(Team))).scalars().all()
+        assert len(teams) == 48
+        # Add 3 watchlist players manually
+        team_a1 = next(t for t in teams if t.country_code == "A1")
+        team_b1 = next(t for t in teams if t.country_code == "B1")
+        team_c1 = next(t for t in teams if t.country_code == "C1")
+        session.add_all([
+            Player(name="Player A1", team_id=team_a1.id, goals_per_90=0.9, is_watchlist=True),
+            Player(name="Player B1", team_id=team_b1.id, goals_per_90=0.6, is_watchlist=True),
+            Player(name="Player C1", team_id=team_c1.id, goals_per_90=0.4, is_watchlist=True),
+        ])
+        await session.commit()
+
+    # Now re-run; this time top-scorer forecasts should be written.
+    snap = await run_refresh(
+        trigger="manual",
+        football_client=fake_full_wc_football_client,
+        poly_collector=fake_poly_collector,
+        as_of=as_of,
+    )
+
+    async with get_session() as session:
+        rows = (await session.execute(
+            select(TopScorerForecast).where(TopScorerForecast.snapshot_id == snap.id)
+        )).scalars().all()
+    assert len(rows) == 3
+    # The best player (highest goals_per_90 on team A1) should have the highest p_golden_boot
+    by_player_id = {r.player_id: r for r in rows}
+    async with get_session() as session:
+        players = (await session.execute(select(Player))).scalars().all()
+    p_by_name = {p.name: p for p in players}
+    a1_row = by_player_id[p_by_name["Player A1"].id]
+    c1_row = by_player_id[p_by_name["Player C1"].id]
+    assert a1_row.p_golden_boot >= c1_row.p_golden_boot

@@ -6,7 +6,7 @@ from jinja2 import Environment, FileSystemLoader, select_autoescape
 from sqlmodel import select
 
 from worldcap.db import get_session
-from worldcap.models import Team, TournamentForecast
+from worldcap.models import Team, TournamentForecast, Player, TopScorerForecast
 from worldcap.models.forecast import ForecastSnapshot, MatchForecast
 from worldcap.models.tournament import Competition, Match
 
@@ -45,6 +45,16 @@ class NextMatchRow:
     away_name: str
     kickoff_utc: datetime
     group_label: str | None
+
+
+@dataclass
+class TopScorerRow:
+    player_name: str
+    team_name: str
+    p_golden_boot: float
+    poly_p_top_scorer: float | None
+    edge_vs_poly: float
+    goals_per_90: float
 
 
 def _phase_label(as_of: datetime, start_date: datetime, end_date: datetime) -> str:
@@ -91,6 +101,27 @@ async def render_digest_markdown(snapshot_id: int, as_of: datetime, top_n: int =
                 edge_vs_poly=f.edge_vs_poly,
             )
             for f in forecasts
+        ]
+
+        # Top-scorer race (top 10 by p_golden_boot)
+        top_scorer_rows_raw = (await session.execute(
+            select(TopScorerForecast, Player, Team)
+            .join(Player, TopScorerForecast.player_id == Player.id)
+            .join(Team, Player.team_id == Team.id)
+            .where(TopScorerForecast.snapshot_id == snapshot_id)
+            .order_by(TopScorerForecast.p_golden_boot.desc())
+            .limit(10)
+        )).all()
+        top_scorers = [
+            TopScorerRow(
+                player_name=player.name,
+                team_name=team.name,
+                p_golden_boot=tsf.p_golden_boot,
+                poly_p_top_scorer=tsf.poly_p_top_scorer,
+                edge_vs_poly=tsf.edge_vs_poly,
+                goals_per_90=player.goals_per_90,
+            )
+            for tsf, player, team in top_scorer_rows_raw
         ]
 
         # Per-match forecasts (joined to Match for kickoff + group_label + teams)
@@ -151,6 +182,7 @@ async def render_digest_markdown(snapshot_id: int, as_of: datetime, top_n: int =
         as_of=as_of,
         phase_label=_phase_label(as_of, comp.start_date, comp.end_date),
         outlook=outlook,
+        top_scorers=top_scorers,
         per_match=per_match,
         next_matches=next_matches,
     )

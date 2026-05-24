@@ -13,6 +13,7 @@ Returns:
         "champion": Team,
         "runner_up": Team,
         "semifinalists": list[Team],  # 4 teams who reached the SF (incl. finalists)
+        "rounds_reached": dict[Team, str],  # max round reached per team
     }
 """
 
@@ -63,23 +64,41 @@ def simulate_knockout(
 ) -> dict:
     """Simulate R32 → F starting from 32 seeded teams.
 
-    Returns a dict with keys champion, runner_up, semifinalists.
+    Returns a dict with keys champion, runner_up, semifinalists, rounds_reached.
     """
     if len(seeded_teams) != BRACKET_R32_TEAMS:
         raise ValueError(
             f"simulate_knockout requires exactly {BRACKET_R32_TEAMS} teams; got {len(seeded_teams)}"
         )
 
+    # Initialize: all seeded teams reach at least R32
+    rounds_reached: dict = {t: "R32" for t in seeded_teams}
+
     r16 = _play_round(seeded_teams, ratings_by_team, rng)
+    for t in r16:
+        rounds_reached[t] = "R16"
+
     qf = _play_round(r16, ratings_by_team, rng)
+    for t in qf:
+        rounds_reached[t] = "QF"
+
     sf = _play_round(qf, ratings_by_team, rng)
-    semifinalists = list(sf)  # capture before SF round mutates
+    for t in sf:
+        rounds_reached[t] = "SF"
+    semifinalists = list(sf)  # capture before finalists round
+
     finalists = _play_round(sf, ratings_by_team, rng)
+    for t in finalists:
+        rounds_reached[t] = "F"
+
     champion = _play_knockout_match(finalists[0], finalists[1], ratings_by_team, rng)
     runner_up = finalists[1] if champion == finalists[0] else finalists[0]
+    rounds_reached[champion] = "champion"
+    # runner_up stays at "F"
 
     return {
         "champion": champion,
         "runner_up": runner_up,
         "semifinalists": semifinalists,
+        "rounds_reached": rounds_reached,
     }

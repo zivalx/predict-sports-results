@@ -1,0 +1,41 @@
+player_name,country_code,position,goals_per_90
+Lionel Messi,ARG,FW,0.62
+Lautaro Martinez,ARG,FW,0.74
+Kylian Mbappe,FRA,FW,0.89
+Antoine Griezmann,FRA,FW,0.48
+Lamine Yamal,ESP,FW,0.55
+Alvaro Morata,ESP,FW,0.52
+Harry Kane,ENG,FW,0.81
+Bukayo Saka,ENG,FW,0.50
+Vinicius Junior,BRA,FW,0.70
+Rodrygo,BRA,FW,0.45
+Memphis Depay,NED,FW,0.55
+Cody Gakpo,NED,FW,0.46
+Cristiano Ronaldo,POR,FW,0.65
+Bruno Fernandes,POR,MF,0.40
+Romelu Lukaku,BEL,FW,0.72
+Kevin De Bruyne,BEL,MF,0.32
+Lorenzo Pellegrini,ITA,MF,0.30
+Mateo Retegui,ITA,FW,0.55
+Jamal Musiala,GER,MF,0.42
+Niclas Fullkrug,GER,FW,0.58
+Erling Haaland,NOR,FW,1.05
+Andrej Kramaric,CRO,FW,0.45
+Darwin Nunez,URU,FW,0.55
+Federico Valverde,URU,MF,0.32
+Luis Diaz,COL,FW,0.50
+James Rodriguez,COL,MF,0.35
+Hakim Ziyech,MAR,MF,0.32
+Achraf Hakimi,MAR,DF,0.20
+Granit Xhaka,SUI,MF,0.20
+Breel Embolo,SUI,FW,0.42
+Christian Pulisic,USA,FW,0.45
+Folarin Balogun,USA,FW,0.45
+Hirving Lozano,MEX,FW,0.40
+Raul Jimenez,MEX,FW,0.45
+Takefusa Kubo,JPN,MF,0.30
+Son Heungmin,KOR,FW,0.55
+Sadio Mane,SEN,FW,0.55
+Ismaila Sarr,SEN,FW,0.35
+Christian Eriksen,DEN,MF,0.28
+Mohamed Salah,EGY,FW,0.78

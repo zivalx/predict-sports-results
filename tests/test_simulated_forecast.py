@@ -63,10 +63,11 @@ async def test_simulated_forecast_produces_tournament_forecast_rows():
         ))
         await session.commit()
 
-    snap = await generate_simulated_forecast(trigger="manual", n_iterations=200, seed=42)
+    snap, sim_result = await generate_simulated_forecast(trigger="manual", n_iterations=200, seed=42)
     assert isinstance(snap, ForecastSnapshot)
     assert snap.snapshot_trigger == "manual"
     assert snap.model_version.startswith("simulator-v0")
+    assert sim_result is not None
 
     async with get_session() as session:
         forecasts = (await session.execute(
@@ -100,7 +101,8 @@ async def test_simulated_forecast_handles_missing_polymarket_snapshot():
     await _seed_wc_teams_and_ratings(as_of)
     # No OddsSnapshot inserted.
 
-    snap = await generate_simulated_forecast(trigger="manual", n_iterations=100, seed=42)
+    snap, sim_result = await generate_simulated_forecast(trigger="manual", n_iterations=100, seed=42)
+    assert sim_result is not None
 
     async with get_session() as session:
         forecasts = (await session.execute(
