@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Optional
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from sqlmodel import select
 
@@ -18,6 +18,8 @@ from worldcap.models import (
     Competition,
     ForecastSnapshot,
     Match,
+    MatchForecast,
+    NewsItem,
     Team,
     TournamentForecast,
 )
@@ -296,3 +298,128 @@ async def tournament(request: Request, order_by: str = "p_champion"):
             name="tournament.html",
             context=context,
         )
+
+
+@dataclass
+class MatchDetailContext:
+    match_id: int
+    home_name: str
+    away_name: str
+    kickoff_utc: datetime
+    stage: str
+    group_label: Optional[str]
+    status: str
+    home_score: Optional[int]
+    away_score: Optional[int]
+    p_home: Optional[float]
+    p_draw: Optional[float]
+    p_away: Optional[float]
+    p_home_poly: Optional[float]
+    p_draw_poly: Optional[float]
+    p_away_poly: Optional[float]
+    edge_vs_poly: Optional[float]
+    rationale_md: Optional[str]
+    home_headlines: list[str]
+    away_headlines: list[str]
+
+
+@router.get("/match/{match_id}", response_class=HTMLResponse)
+async def match_detail(request: Request, match_id: int):
+    settings = get_settings()
+    async with get_session() as session:
+        match = (await session.execute(
+            select(Match).where(Match.id == match_id)
+        )).scalar_one_or_none()
+        if match is None:
+            raise HTTPException(status_code=404, detail="match not found")
+
+        teams_by_id = {t.id: t for t in (await session.execute(select(Team))).scalars().all()}
+        home = teams_by_id.get(match.home_team_id) if match.home_team_id else None
+        away = teams_by_id.get(match.away_team_id) if match.away_team_id else None
+        home_name = home.name if home else "TBD"
+        away_name = away.name if away else "TBD"
+
+        # Latest forecast for this match
+        snap = (await session.execute(
+            select(ForecastSnapshot)
+            .where(ForecastSnapshot.competition_id == match.competition_id)
+            .order_by(ForecastSnapshot.snapshot_date.desc())
+        )).scalars().first()
+
+        mf = None
+        if snap is not None:
+            mf = (await session.execute(
+                select(MatchForecast)
+                .where(MatchForecast.snapshot_id == snap.id)
+                .where(MatchForecast.match_id == match.id)
+            )).scalar_one_or_none()
+
+        home_headlines: list[str] = []
+        away_headlines: list[str] = []
+        if home is not None:
+            home_headlines = [
+                n.title for n in (await session.execute(
+                    select(NewsItem)
+                    .where(NewsItem.team_id == home.id)
+                    .order_by(NewsItem.ts.desc())
+                    .limit(5)
+                )).scalars().all()
+            ]
+        if away is not None:
+            away_headlines = [
+                n.title for n in (await session.execute(
+                    select(NewsItem)
+                    .where(NewsItem.team_id == away.id)
+                    .order_by(NewsItem.ts.desc())
+                    .limit(5)
+                )).scalars().all()
+            ]
+
+        ctx = MatchDetailContext(
+            match_id=match.id,
+            home_name=home_name,
+            away_name=away_name,
+            kickoff_utc=match.kickoff_utc,
+            stage=match.stage,
+            group_label=match.group_label,
+            status=match.status,
+            home_score=match.home_score,
+            away_score=match.away_score,
+            p_home=mf.p_home if mf else None,
+            p_draw=mf.p_draw if mf else None,
+            p_away=mf.p_away if mf else None,
+            p_home_poly=mf.p_home_poly if mf else None,
+            p_draw_poly=mf.p_draw_poly if mf else None,
+            p_away_poly=mf.p_away_poly if mf else None,
+            edge_vs_poly=mf.edge_vs_poly if mf else None,
+            rationale_md=mf.rationale_md if mf else None,
+            home_headlines=home_headlines,
+            away_headlines=away_headlines,
+        )
+
+    context = {
+        "match_id": ctx.match_id,
+        "home_name": ctx.home_name,
+        "away_name": ctx.away_name,
+        "kickoff_utc": ctx.kickoff_utc,
+        "stage": ctx.stage,
+        "group_label": ctx.group_label,
+        "status": ctx.status,
+        "home_score": ctx.home_score,
+        "away_score": ctx.away_score,
+        "p_home": ctx.p_home,
+        "p_draw": ctx.p_draw,
+        "p_away": ctx.p_away,
+        "p_home_poly": ctx.p_home_poly,
+        "p_draw_poly": ctx.p_draw_poly,
+        "p_away_poly": ctx.p_away_poly,
+        "edge_vs_poly": ctx.edge_vs_poly,
+        "rationale_md": ctx.rationale_md,
+        "home_headlines": ctx.home_headlines,
+        "away_headlines": ctx.away_headlines,
+    }
+    return request.app.state.templates.TemplateResponse(
+        request=request,
+        name="match_detail.html",
+        context=context,
+    )
