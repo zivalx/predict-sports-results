@@ -176,8 +176,23 @@ non-MCP callers.
 
 ### Deploy
 
-End-to-end Hetzner VPS deploy recipe lives under [`deploy/README.md`](deploy/README.md).
-TL;DR:
+Three deploy paths are supported:
+
+| Target | Guide | Scheduler |
+|--------|-------|-----------|
+| **Windows PC** (personal, recommended for daily use) | [`deploy/windows/README.md`](deploy/windows/README.md) | Windows Task Scheduler |
+| **macOS** | [`deploy/macos/README.md`](deploy/macos/README.md) | launchd |
+| **Hetzner VPS / Linux** | [`deploy/README.md`](deploy/README.md) | systemd |
+
+All three paths push the rendered static dashboard to Cloudflare Pages
+(`worldcup.zivalx.com`) after each refresh. The Windows and macOS paths keep
+the SQLite DB local; the Hetzner path keeps it on the VPS.
+
+To expose the live MCP API privately (for Claude agent queries), see
+[`deploy/cloudflare-tunnel.md`](deploy/cloudflare-tunnel.md) — covers both
+macOS and Windows.
+
+**Hetzner TL;DR:**
 
     sudo cp deploy/worldcap.service /etc/systemd/system/
     sudo cp deploy/env.production.example /opt/worldcap/.env  # then fill keys
