@@ -50,6 +50,8 @@ async def export_static(output_dir: Path, base_url: str = "") -> dict[str, int]:
             ("/", "index.html"),
             ("/tournament", "tournament.html"),
             ("/golden-boot", "golden-boot.html"),
+            ("/bets", "bets.html"),
+            ("/results", "results.html"),
         ]:
             r = await client.get(path)
             r.raise_for_status()
@@ -158,6 +160,15 @@ def _rewrite_links_for_static(html: str, base_url: str = "") -> str:
 
     So this function is a no-op for v0 but is a hook for future use.
     """
+    # Rewrite nav links so they resolve as static .html files.
+    html = html.replace('href="/tournament"', 'href="/tournament.html"')
+    html = html.replace('href="/golden-boot"', 'href="/golden-boot.html"')
+    html = html.replace('href="/bets"', 'href="/bets.html"')
+    html = html.replace('href="/results"', 'href="/results.html"')
+    # /match/<id> links → /match/<id>.html
+    import re
+    html = re.sub(r'href="/match/(\d+)"', r'href="/match/\1.html"', html)
+
     # Optional: inject a <meta> hint for the canonical URL.
     if base_url:
         meta_tag = f'<meta name="canonical-base" content="{base_url}">'

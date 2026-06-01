@@ -564,6 +564,359 @@ async def golden_boot(request: Request):
     )
 
 
+@router.get("/bets", response_class=HTMLResponse)
+async def bets(request: Request):
+    settings = get_settings()
+    async with get_session() as session:
+        comp = (await session.execute(
+            select(Competition).where(Competition.code == settings.db_competition_code)
+        )).scalar_one_or_none()
+        if comp is None:
+            return request.app.state.templates.TemplateResponse(
+                request=request,
+                name="bets.html",
+                context={
+                    "competition_name": "(unseeded)",
+                    "groups": [],
+                    "bracket_rounds": [],
+                    "total_group_matches": 0,
+                    "total_knockout_matches": 0,
+                    "total_with_forecast": 0,
+                },
+            )
+
+        snap = (await session.execute(
+            select(ForecastSnapshot)
+            .where(ForecastSnapshot.competition_id == comp.id)
+            .order_by(ForecastSnapshot.snapshot_date.desc())
+        )).scalars().first()
+
+        teams_by_id = {
+            t.id: t for t in (await session.execute(select(Team))).scalars().all()
+        }
+
+        # All matches
+        all_matches = (await session.execute(
+            select(Match)
+            .where(Match.competition_id == comp.id)
+            .order_by(Match.kickoff_utc.asc())
+        )).scalars().all()
+
+        # All match forecasts from latest snapshot
+        mf_by_match: dict[int, MatchForecast] = {}
+        if snap is not None:
+            mfs = (await session.execute(
+                select(MatchForecast).where(MatchForecast.snapshot_id == snap.id)
+            )).scalars().all()
+            mf_by_match = {mf.match_id: mf for mf in mfs}
+
+        # Tournament forecasts for bracket projection
+        tf_by_team: dict[int, TournamentForecast] = {}
+        if snap is not None:
+            tfs = (await session.execute(
+                select(TournamentForecast).where(TournamentForecast.snapshot_id == snap.id)
+            )).scalars().all()
+            tf_by_team = {tf.team_id: tf for tf in tfs}
+
+        def _rec_bet(mf: MatchForecast) -> tuple[str, str]:
+            """Return (rec_key, rec_label) for the highest-probability outcome."""
+            options = [
+                ("home", mf.p_home, teams_by_id[mf_match_home].name if (mf_match_home := _match_home(mf.match_id)) else "Home"),
+                ("draw", mf.p_draw, "Draw"),
+                ("away", mf.p_away, teams_by_id[mf_match_away].name if (mf_match_away := _match_away(mf.match_id)) else "Away"),
+            ]
+            best = max(options, key=lambda x: x[1])
+            return best[0], best[2]
+
+        # Helper lookups
+        match_by_id = {m.id: m for m in all_matches}
+
+        def _match_home(mid: int) -> Optional[int]:
+            return match_by_id[mid].home_team_id if mid in match_by_id else None
+
+        def _match_away(mid: int) -> Optional[int]:
+            return match_by_id[mid].away_team_id if mid in match_by_id else None
+
+        def _build_match_row(m: Match) -> dict:
+            mf = mf_by_match.get(m.id)
+            home_name = teams_by_id[m.home_team_id].name if m.home_team_id and m.home_team_id in teams_by_id else "TBD"
+            away_name = teams_by_id[m.away_team_id].name if m.away_team_id and m.away_team_id in teams_by_id else "TBD"
+            rec = None
+            rec_label = None
+            if mf is not None:
+                options = [
+                    ("home", mf.p_home, home_name),
+                    ("draw", mf.p_draw, "Draw"),
+                    ("away", mf.p_away, away_name),
+                ]
+                best = max(options, key=lambda x: x[1])
+                rec, rec_label = best[0], best[2]
+            return {
+                "match_id": m.id,
+                "home_name": home_name,
+                "away_name": away_name,
+                "kickoff_utc": m.kickoff_utc,
+                "status": m.status,
+                "home_score": m.home_score,
+                "away_score": m.away_score,
+                "p_home": mf.p_home if mf else None,
+                "p_draw": mf.p_draw if mf else None,
+                "p_away": mf.p_away if mf else None,
+                "edge_vs_poly": mf.edge_vs_poly if mf else None,
+                "rec": rec,
+                "rec_label": rec_label,
+            }
+
+        # ── Group stage ──
+        group_matches: dict[str, list[Match]] = {}
+        knockout_matches: list[Match] = []
+        for m in all_matches:
+            if m.group_label:
+                group_matches.setdefault(m.group_label, []).append(m)
+            elif m.stage != "group":
+                knockout_matches.append(m)
+
+        groups = []
+        for label in sorted(group_matches.keys()):
+            matches = group_matches[label]
+            rows = [_build_match_row(m) for m in matches]
+
+            # Find projected group winner (highest p_top_group among teams in this group)
+            team_ids_in_group = set()
+            for m in matches:
+                if m.home_team_id:
+                    team_ids_in_group.add(m.home_team_id)
+                if m.away_team_id:
+                    team_ids_in_group.add(m.away_team_id)
+
+            projected_winner = None
+            projected_winner_pct = 0.0
+            for tid in team_ids_in_group:
+                tf = tf_by_team.get(tid)
+                if tf and tf.p_top_group > projected_winner_pct:
+                    projected_winner_pct = tf.p_top_group
+                    projected_winner = teams_by_id[tid].name if tid in teams_by_id else None
+
+            groups.append({
+                "label": label,
+                "matches": rows,
+                "projected_winner": projected_winner,
+                "projected_winner_pct": projected_winner_pct,
+            })
+
+        # ── Projected knockout bracket ──
+        from worldcup.model.simulator.bracket_template import (
+            WC2026_R32,
+            WC2026_R16_FROM_R32,
+            WC2026_QF_FROM_R16,
+            WC2026_SF_FROM_QF,
+            WC2026_F_FROM_SF,
+        )
+
+        # Build slot→team projection from group data
+        # For each group, rank teams by p_top_group desc → project 1st, 2nd, 3rd, 4th
+        slot_team: dict[str, tuple[str, float]] = {}  # slot → (team_name, confidence)
+        for label in sorted(group_matches.keys()):
+            team_ids_in_group = set()
+            for m in group_matches[label]:
+                if m.home_team_id:
+                    team_ids_in_group.add(m.home_team_id)
+                if m.away_team_id:
+                    team_ids_in_group.add(m.away_team_id)
+
+            # Sort by p_top_group descending
+            ranked = sorted(
+                team_ids_in_group,
+                key=lambda tid: tf_by_team[tid].p_top_group if tid in tf_by_team else 0,
+                reverse=True,
+            )
+            for pos, tid in enumerate(ranked):
+                name = teams_by_id[tid].name if tid in teams_by_id else f"team-{tid}"
+                tf = tf_by_team.get(tid)
+                if pos == 0:
+                    slot_team[f"{label}1"] = (name, tf.p_top_group if tf else 0)
+                elif pos == 1:
+                    # confidence of 2nd ≈ 1 - p_top_group (rough estimate)
+                    slot_team[f"{label}2"] = (name, (1 - tf.p_top_group) if tf else 0)
+
+        # Third-place projection: sort all projected 3rd-place teams
+        all_thirds = []
+        for label in sorted(group_matches.keys()):
+            team_ids_in_group = set()
+            for m in group_matches[label]:
+                if m.home_team_id:
+                    team_ids_in_group.add(m.home_team_id)
+                if m.away_team_id:
+                    team_ids_in_group.add(m.away_team_id)
+            ranked = sorted(
+                team_ids_in_group,
+                key=lambda tid: tf_by_team[tid].p_top_group if tid in tf_by_team else 0,
+                reverse=True,
+            )
+            if len(ranked) >= 3:
+                tid = ranked[2]
+                name = teams_by_id[tid].name if tid in teams_by_id else f"team-{tid}"
+                tf = tf_by_team.get(tid)
+                # Use p_semi as rough proxy for 3rd-place strength
+                strength = tf.p_semi if tf else 0
+                all_thirds.append((name, strength))
+        all_thirds.sort(key=lambda x: x[1], reverse=True)
+        for i, (name, strength) in enumerate(all_thirds[:8]):
+            slot_team[f"3RD_{i + 1}"] = (name, strength)
+
+        def _resolve_slot(slot: str) -> tuple[str, Optional[float]]:
+            if slot in slot_team:
+                return slot_team[slot]
+            return (slot, None)
+
+        # If a knockout match already has teams assigned in the DB, use those instead
+        ko_match_by_slot: dict[str, Match] = {}
+        for m in knockout_matches:
+            if m.bracket_slot:
+                ko_match_by_slot[m.bracket_slot] = m
+
+        def _build_ko_match(idx: int, left_slot: str, right_slot: str, round_prefix: str) -> dict:
+            slot_label = f"{round_prefix}-{idx + 1}"
+            db_match = ko_match_by_slot.get(slot_label)
+
+            if db_match and db_match.home_team_id and db_match.away_team_id:
+                # Real match with teams assigned
+                row = _build_match_row(db_match)
+                row["home_conf"] = None
+                row["away_conf"] = None
+                return row
+
+            # Projected
+            home_name, home_conf = _resolve_slot(left_slot)
+            away_name, away_conf = _resolve_slot(right_slot)
+            return {
+                "home_name": home_name,
+                "away_name": away_name,
+                "home_conf": home_conf,
+                "away_conf": away_conf,
+                "p_home": None,
+                "p_draw": None,
+                "p_away": None,
+                "rec": None,
+                "rec_label": None,
+            }
+
+        # Build R32
+        r32_matches = [
+            _build_ko_match(i, left, right, "R32")
+            for i, (left, right) in enumerate(WC2026_R32)
+        ]
+
+        # For R16+, we'd need to project winners of previous rounds — just show slots
+        def _winner_label(match_row: dict) -> str:
+            """Pick the projected winner of a match for downstream bracket display."""
+            if match_row.get("p_home") is not None and match_row.get("p_away") is not None:
+                if match_row["p_home"] >= match_row["p_away"]:
+                    return match_row["home_name"]
+                return match_row["away_name"]
+            # Fall back to home (higher-seeded) if no forecast
+            return match_row["home_name"]
+
+        r16_matches = []
+        for i, (a, b) in enumerate(WC2026_R16_FROM_R32):
+            home_name = _winner_label(r32_matches[a])
+            away_name = _winner_label(r32_matches[b])
+            slot_label = f"R16-{i + 1}"
+            db_match = ko_match_by_slot.get(slot_label)
+            if db_match and db_match.home_team_id and db_match.away_team_id:
+                row = _build_match_row(db_match)
+                row["home_conf"] = None
+                row["away_conf"] = None
+            else:
+                row = {
+                    "home_name": home_name, "away_name": away_name,
+                    "home_conf": None, "away_conf": None,
+                    "p_home": None, "p_draw": None, "p_away": None,
+                    "rec": None, "rec_label": None,
+                }
+            r16_matches.append(row)
+
+        qf_matches = []
+        for i, (a, b) in enumerate(WC2026_QF_FROM_R16):
+            home_name = _winner_label(r16_matches[a])
+            away_name = _winner_label(r16_matches[b])
+            slot_label = f"QF-{i + 1}"
+            db_match = ko_match_by_slot.get(slot_label)
+            if db_match and db_match.home_team_id and db_match.away_team_id:
+                row = _build_match_row(db_match)
+                row["home_conf"] = None
+                row["away_conf"] = None
+            else:
+                row = {
+                    "home_name": home_name, "away_name": away_name,
+                    "home_conf": None, "away_conf": None,
+                    "p_home": None, "p_draw": None, "p_away": None,
+                    "rec": None, "rec_label": None,
+                }
+            qf_matches.append(row)
+
+        sf_matches = []
+        for i, (a, b) in enumerate(WC2026_SF_FROM_QF):
+            home_name = _winner_label(qf_matches[a])
+            away_name = _winner_label(qf_matches[b])
+            slot_label = f"SF-{i + 1}"
+            db_match = ko_match_by_slot.get(slot_label)
+            if db_match and db_match.home_team_id and db_match.away_team_id:
+                row = _build_match_row(db_match)
+                row["home_conf"] = None
+                row["away_conf"] = None
+            else:
+                row = {
+                    "home_name": home_name, "away_name": away_name,
+                    "home_conf": None, "away_conf": None,
+                    "p_home": None, "p_draw": None, "p_away": None,
+                    "rec": None, "rec_label": None,
+                }
+            sf_matches.append(row)
+
+        a_sf, b_sf = WC2026_F_FROM_SF
+        final_home = _winner_label(sf_matches[a_sf])
+        final_away = _winner_label(sf_matches[b_sf])
+        db_final = ko_match_by_slot.get("F")
+        if db_final and db_final.home_team_id and db_final.away_team_id:
+            final_row = _build_match_row(db_final)
+            final_row["home_conf"] = None
+            final_row["away_conf"] = None
+        else:
+            final_row = {
+                "home_name": final_home, "away_name": final_away,
+                "home_conf": None, "away_conf": None,
+                "p_home": None, "p_draw": None, "p_away": None,
+                "rec": None, "rec_label": None,
+            }
+        final_matches = [final_row]
+
+        bracket_rounds = [
+            {"name": "Round of 32", "matches": r32_matches, "has_forecasts": any(m.get("p_home") is not None for m in r32_matches)},
+            {"name": "Round of 16", "matches": r16_matches, "has_forecasts": any(m.get("p_home") is not None for m in r16_matches)},
+            {"name": "Quarter-finals", "matches": qf_matches, "has_forecasts": any(m.get("p_home") is not None for m in qf_matches)},
+            {"name": "Semi-finals", "matches": sf_matches, "has_forecasts": any(m.get("p_home") is not None for m in sf_matches)},
+            {"name": "Final", "matches": final_matches, "has_forecasts": any(m.get("p_home") is not None for m in final_matches)},
+        ]
+
+        total_group = sum(len(g["matches"]) for g in groups)
+        total_ko = len(knockout_matches)
+        total_forecast = len(mf_by_match)
+
+    return request.app.state.templates.TemplateResponse(
+        request=request,
+        name="bets.html",
+        context={
+            "competition_name": comp.name,
+            "groups": groups,
+            "bracket_rounds": bracket_rounds,
+            "total_group_matches": total_group,
+            "total_knockout_matches": total_ko,
+            "total_with_forecast": total_forecast,
+        },
+    )
+
+
 @dataclass
 class ResultMatchRow:
     match_id: int

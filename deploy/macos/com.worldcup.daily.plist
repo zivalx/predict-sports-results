@@ -13,6 +13,14 @@
     <string>$HOME/repos_/worldcup/deploy/macos/refresh.sh</string>
   </array>
 
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>STATIC_REPO</key>
+    <string>https://github.com/zivalx/worldcup-static.git</string>
+    <key>WORLDCUP_BASE_URL</key>
+    <string>https://worldcup.zivalx.workers.dev</string>
+  </dict>
+
   <!-- 09:00 UTC daily. Adjust if you want a different local time. -->
   <key>StartCalendarInterval</key>
   <dict>

@@ -1,0 +1,182 @@
+{% extends "base.html" %}
+{% block title %}World Cup 2026 · Bets{% endblock %}
+{% block content %}
+
+<div class="section-header" style="margin-top: 1.5rem; margin-bottom: 1.25rem;">
+  <h2 class="section-title">Betting sheet &mdash; {{ competition_name }}</h2>
+</div>
+
+{% if not groups %}
+<div class="empty-state">
+  <div class="empty-state-icon">&#9670;</div>
+  <p>No match forecasts yet. Run a refresh to populate this page.</p>
+</div>
+{% else %}
+
+{# ── Summary stats ── #}
+<div class="stat-tiles" style="margin-bottom: 2rem;">
+  <div class="stat-tile">
+    <div class="stat-tile-label">Group matches</div>
+    <div class="stat-tile-value">{{ total_group_matches }}</div>
+  </div>
+  <div class="stat-tile">
+    <div class="stat-tile-label">Knockout matches</div>
+    <div class="stat-tile-value">{{ total_knockout_matches }}</div>
+  </div>
+  <div class="stat-tile">
+    <div class="stat-tile-label">With forecast</div>
+    <div class="stat-tile-value">{{ total_with_forecast }}</div>
+  </div>
+</div>
+
+{# ── Group stage bets ── #}
+<div class="section-header">
+  <h3 class="section-title">Group stage</h3>
+</div>
+
+<div class="bets-groups">
+{% for group in groups %}
+<div class="bets-group-block">
+  <div class="bets-group-header">
+    <span class="bets-group-label">Group {{ group.label }}</span>
+    {% if group.projected_winner %}
+    <span class="bets-group-fav" title="Most likely to top group">
+      {{ group.projected_winner }} <span class="muted small">({{ '%.0f' % (group.projected_winner_pct * 100) }}%)</span>
+    </span>
+    {% endif %}
+  </div>
+
+  <div style="overflow-x: auto;">
+  <table class="table-modern bets-table">
+    <thead>
+      <tr>
+        <th>Match</th>
+        <th>Kickoff</th>
+        <th class="col-pct">Home%</th>
+        <th class="col-pct">Draw%</th>
+        <th class="col-pct">Away%</th>
+        <th>Rec. bet</th>
+        <th>Edge</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for m in group.matches %}
+      <tr>
+        <td class="col-team">
+          <span class="bet-home">{{ m.home_name }}</span>
+          <span class="muted"> v </span>
+          <span class="bet-away">{{ m.away_name }}</span>
+        </td>
+        <td class="small muted">{{ m.kickoff_utc.strftime('%b %-d %H:%M') }}</td>
+        {% if m.p_home is not none %}
+        <td class="col-pct {% if m.rec == 'home' %}bet-pick{% endif %}">{{ '%.0f' % (m.p_home * 100) }}%</td>
+        <td class="col-pct {% if m.rec == 'draw' %}bet-pick{% endif %}">{{ '%.0f' % (m.p_draw * 100) }}%</td>
+        <td class="col-pct {% if m.rec == 'away' %}bet-pick{% endif %}">{{ '%.0f' % (m.p_away * 100) }}%</td>
+        <td>
+          <span class="bet-rec-chip {{ m.rec }}">
+            {% if m.rec == 'home' %}1{% elif m.rec == 'draw' %}X{% else %}2{% endif %}
+            &middot; {{ m.rec_label }}
+          </span>
+        </td>
+        <td>
+          {% if m.edge_vs_poly is not none %}
+            {% set edge_pp = m.edge_vs_poly * 100 %}
+            {% if edge_pp > 0.5 %}
+              <span class="edge-chip positive">+{{ '%.1f' % edge_pp }}pp</span>
+            {% elif edge_pp < -0.5 %}
+              <span class="edge-chip negative">{{ '%.1f' % edge_pp }}pp</span>
+            {% else %}
+              <span class="edge-chip neutral">{{ '%+.1f' % edge_pp }}pp</span>
+            {% endif %}
+          {% else %}
+            <span class="muted">&mdash;</span>
+          {% endif %}
+        </td>
+        {% else %}
+        <td colspan="5" class="muted small">No forecast</td>
+        {% endif %}
+        <td>
+          {% if m.status == 'FT' %}
+            <span class="bet-status-chip ft">FT {{ m.home_score }}&ndash;{{ m.away_score }}</span>
+          {% elif m.status == 'LIVE' %}
+            <span class="bet-status-chip live">LIVE</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</div>
+{% endfor %}
+</div>
+
+{# ── Projected knockout bracket ── #}
+{% if bracket_rounds %}
+<div class="section-header" style="margin-top: 2.5rem;">
+  <h3 class="section-title">Projected knockout bracket</h3>
+</div>
+<p class="small muted" style="margin-bottom: 1.25rem;">
+  Based on Monte Carlo simulation &mdash; most likely team per slot.
+  Confidence shown as probability of reaching that round.
+</p>
+
+{% for round in bracket_rounds %}
+<div class="bets-ko-round">
+  <div class="bets-ko-round-header">{{ round.name }} ({{ round.matches | length }} matches)</div>
+  <div style="overflow-x: auto;">
+  <table class="table-modern bets-table">
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Home (slot)</th>
+        <th>Away (slot)</th>
+        {% if round.has_forecasts %}
+        <th class="col-pct">Home%</th>
+        <th class="col-pct">Draw%</th>
+        <th class="col-pct">Away%</th>
+        <th>Rec. bet</th>
+        {% endif %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for m in round.matches %}
+      <tr>
+        <td class="col-rank muted">{{ loop.index }}</td>
+        <td class="col-team">
+          {{ m.home_name }}
+          {% if m.home_conf is not none %}
+            <span class="bet-conf muted">({{ '%.0f' % (m.home_conf * 100) }}%)</span>
+          {% endif %}
+        </td>
+        <td class="col-team">
+          {{ m.away_name }}
+          {% if m.away_conf is not none %}
+            <span class="bet-conf muted">({{ '%.0f' % (m.away_conf * 100) }}%)</span>
+          {% endif %}
+        </td>
+        {% if round.has_forecasts and m.p_home is not none %}
+        <td class="col-pct {% if m.rec == 'home' %}bet-pick{% endif %}">{{ '%.0f' % (m.p_home * 100) }}%</td>
+        <td class="col-pct {% if m.rec == 'draw' %}bet-pick{% endif %}">{{ '%.0f' % (m.p_draw * 100) }}%</td>
+        <td class="col-pct {% if m.rec == 'away' %}bet-pick{% endif %}">{{ '%.0f' % (m.p_away * 100) }}%</td>
+        <td>
+          <span class="bet-rec-chip {{ m.rec }}">
+            {% if m.rec == 'home' %}1{% elif m.rec == 'draw' %}X{% else %}2{% endif %}
+            &middot; {{ m.rec_label }}
+          </span>
+        </td>
+        {% elif round.has_forecasts %}
+        <td colspan="4" class="muted small">No forecast yet</td>
+        {% endif %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</div>
+{% endfor %}
+{% endif %}
+
+{% endif %}
+{% endblock %}

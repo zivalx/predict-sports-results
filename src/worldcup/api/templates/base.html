@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{% block title %}World Cup 2026{% endblock %}</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>&#9917;</text></svg>">
   <link rel="stylesheet" href="/static/dashboard.css">
   <script src="https://unpkg.com/htmx.org@1.9.12" defer></script>
 </head>
@@ -19,7 +20,12 @@
         <li><a href="/results">Results</a></li>
         <li><a href="/tournament">Tournament</a></li>
         <li><a href="/golden-boot">Golden Boot</a></li>
+        <li><a href="/bets">Bets</a></li>
       </ul>
+      <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle light/dark theme" title="Toggle theme">
+        <span class="theme-icon-light">&#9728;&#65039;</span>
+        <span class="theme-icon-dark">&#9790;</span>
+      </button>
     </nav>
   </header>
 
@@ -34,5 +40,17 @@
     {% endif %}
   </footer>
 
+  <script>
+    (function() {
+      var saved = localStorage.getItem('wc-theme');
+      if (saved) document.documentElement.setAttribute('data-theme', saved);
+    })();
+    function toggleTheme() {
+      var current = document.documentElement.getAttribute('data-theme');
+      var next = current === 'light' ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', next);
+      localStorage.setItem('wc-theme', next);
+    }
+  </script>
 </body>
 </html>

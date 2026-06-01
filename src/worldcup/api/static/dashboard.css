@@ -6,60 +6,78 @@
    Design tokens
    ------------------------------------------------------------------ */
 :root {
-  /* Backgrounds */
-  --bg: #fafaf9;
+  /* Backgrounds — warm white, airy */
+  --bg: #fffefa;
   --surface: #ffffff;
   --surface-elevated: #ffffff;
 
-  /* Borders + dividers */
-  --border: #e7e5e4;
-  --border-strong: #d6d3d1;
+  /* Borders + dividers — soft warm gray */
+  --border: #ece6df;
+  --border-strong: #ddd5cc;
 
-  /* Text */
-  --text-primary: #1c1917;
-  --text-secondary: #57534e;
-  --text-muted: #a8a29e;
+  /* Text — warm charcoal */
+  --text-primary: #2c2520;
+  --text-secondary: #6b5e54;
+  --text-muted: #b0a498;
 
-  /* Brand + accents */
-  --accent: #0f766e;
-  --accent-soft: #ccfbf1;
+  /* Brand — vivid sky blue (clean, sporty) */
+  --accent: #2186eb;
+  --accent-hover: #1a6fd4;
+  --accent-soft: #e8f4fd;
 
-  /* Semantic */
-  --positive: #059669;
-  --positive-soft: #d1fae5;
-  --negative: #dc2626;
+  /* Semantic — bright, cheerful */
+  --positive: #22c55e;
+  --positive-soft: #dcfce7;
+  --negative: #ef4444;
   --negative-soft: #fee2e2;
-  --neutral: #78716c;
-  --neutral-soft: #f5f5f4;
+  --neutral: #94a3b8;
+  --neutral-soft: #f8f6f3;
 
-  /* Probability bars — match outcomes */
-  --home-color: #ea580c;
-  --draw-color: #78716c;
-  --away-color: #2563eb;
+  /* Probability bars — punchy, distinct */
+  --home-color: #f97316;
+  --draw-color: #94a3b8;
+  --away-color: #2186eb;
 
-  /* Shadows */
-  --shadow-sm: 0 1px 2px rgba(0,0,0,0.04);
-  --shadow-md: 0 4px 12px rgba(0,0,0,0.06);
+  /* Extras */
+  --gold: #eab308;
+  --gold-soft: #fefce8;
+
+  /* Shadows — lighter, warmer */
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.04);
+  --shadow-md: 0 4px 14px rgba(0,0,0,0.07);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #0c0a09;
-    --surface: #1c1917;
-    --surface-elevated: #292524;
-    --border: #292524;
-    --border-strong: #44403c;
-    --text-primary: #fafaf9;
-    --text-secondary: #d6d3d1;
-    --text-muted: #78716c;
-    --accent-soft: #042f2e;
-    --positive-soft: #064e3b;
-    --negative-soft: #7f1d1d;
-    --neutral-soft: #1c1917;
-    --shadow-sm: 0 1px 2px rgba(0,0,0,0.3);
-    --shadow-md: 0 4px 12px rgba(0,0,0,0.4);
-  }
+[data-theme="dark"] {
+  --bg: #111010;
+  --surface: #1c1b1a;
+  --surface-elevated: #282624;
+  --border: #2e2b28;
+  --border-strong: #423d38;
+  --text-primary: #f8f6f3;
+  --text-secondary: #cdc5bc;
+  --text-muted: #7a7068;
+  --accent: #4da6ff;
+  --accent-hover: #6ab6ff;
+  --accent-soft: #172a3e;
+  --positive: #4ade80;
+  --positive-soft: #052e16;
+  --negative: #f87171;
+  --negative-soft: #450a0a;
+  --neutral: #64748b;
+  --neutral-soft: #1c1b1a;
+  --gold: #facc15;
+  --gold-soft: #422006;
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.3);
+  --shadow-md: 0 4px 14px rgba(0,0,0,0.4);
 }
+
+/* Show/hide sun/moon icons based on theme */
+[data-theme="dark"] .theme-icon-light { display: inline; }
+[data-theme="dark"] .theme-icon-dark  { display: none; }
+:root:not([data-theme="dark"]) .theme-icon-light,
+[data-theme="light"] .theme-icon-light { display: none; }
+:root:not([data-theme="dark"]) .theme-icon-dark,
+[data-theme="light"] .theme-icon-dark  { display: inline; }
 
 /* ------------------------------------------------------------------
    Base reset + typography
@@ -172,6 +190,23 @@ h1, h2, h3, h4 { margin: 0; line-height: 1.25; }
   margin-top: 1px;
 }
 
+/* Theme toggle button */
+.theme-toggle {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 1.1rem;
+  line-height: 1;
+  padding: 0.2rem 0.4rem;
+  color: var(--text-secondary);
+  transition: background 0.15s;
+  flex-shrink: 0;
+}
+.theme-toggle:hover {
+  background: var(--neutral-soft);
+}
+
 /* ------------------------------------------------------------------
    Main content wrapper
    ------------------------------------------------------------------ */
@@ -216,6 +251,15 @@ h1, h2, h3, h4 { margin: 0; line-height: 1.25; }
   letter-spacing: -0.02em;
   color: var(--text-primary);
   margin-bottom: 0.35rem;
+}
+
+.hero-tagline {
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  margin: 0.15rem 0 0;
+  font-style: italic;
+  letter-spacing: 0.01em;
 }
 
 .hero-subtitle {
@@ -620,9 +664,13 @@ h1, h2, h3, h4 { margin: 0; line-height: 1.25; }
 }
 
 .table-modern thead {
+  z-index: 10;
+}
+
+/* Only stick thead on standalone full-page tables, not nested ones */
+.table-modern.sticky-header thead {
   position: sticky;
   top: 3rem; /* height of sticky nav */
-  z-index: 10;
 }
 
 .table-modern th {
@@ -1040,7 +1088,7 @@ h1, h2, h3, h4 { margin: 0; line-height: 1.25; }
   transition: background 0.15s;
 }
 
-.btn-refresh:hover { background: #0d6660; }
+.btn-refresh:hover { background: var(--accent-hover, #1a6fd4); }
 
 /* Spinner icon — CSS-only */
 .spinner {
@@ -1139,4 +1187,116 @@ h1, h2, h3, h4 { margin: 0; line-height: 1.25; }
 @media (max-width: 480px) {
   .match-cards { grid-template-columns: 1fr; }
   .contender-card { flex-wrap: wrap; }
+}
+
+/* ------------------------------------------------------------------
+   Bets page
+   ------------------------------------------------------------------ */
+.bets-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.bets-group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.4rem;
+}
+
+.bets-group-label {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.bets-group-fav {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+}
+
+.bets-table {
+  font-size: 0.85rem;
+}
+
+.bets-table .bet-home { font-weight: 600; }
+.bets-table .bet-away { font-weight: 600; }
+
+.bet-pick {
+  background: var(--gold-soft, var(--accent-soft)) !important;
+  font-weight: 700 !important;
+  color: var(--gold, var(--accent)) !important;
+}
+
+.bet-rec-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25em;
+  padding: 0.15em 0.55em;
+  border-radius: 3px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.bet-rec-chip.home {
+  background: #fff7ed;
+  color: var(--home-color);
+  border: 1px solid var(--home-color);
+}
+
+.bet-rec-chip.draw {
+  background: var(--neutral-soft);
+  color: var(--neutral);
+  border: 1px solid var(--neutral);
+}
+
+.bet-rec-chip.away {
+  background: #eff6ff;
+  color: var(--away-color);
+  border: 1px solid var(--away-color);
+}
+
+[data-theme="dark"] .bet-rec-chip.home { background: rgba(249,115,22,0.15); }
+[data-theme="dark"] .bet-rec-chip.draw { background: var(--neutral-soft); }
+[data-theme="dark"] .bet-rec-chip.away { background: rgba(33,134,235,0.15); }
+
+.bet-conf {
+  font-size: 0.75rem;
+  margin-left: 0.2em;
+}
+
+.bet-status-chip {
+  display: inline-block;
+  padding: 0.1em 0.45em;
+  border-radius: 3px;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.bet-status-chip.ft {
+  background: var(--neutral-soft);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+}
+
+.bet-status-chip.live {
+  background: var(--negative-soft);
+  color: var(--negative);
+  border: 1px solid var(--negative);
+}
+
+.bets-ko-round {
+  margin-bottom: 1.5rem;
+}
+
+.bets-ko-round-header {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--accent);
+  margin-bottom: 0.5rem;
+  padding-bottom: 0.25rem;
+  border-bottom: 2px solid var(--accent);
+  display: inline-block;
 }

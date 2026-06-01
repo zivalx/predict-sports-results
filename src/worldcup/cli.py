@@ -29,7 +29,7 @@ def main(argv: list[str] | None = None) -> int:
                           help="Base URL embedded in rendered links (e.g. https://worldcup.zivalx.com).")
 
     p_serve = subs.add_parser("serve", help="Run uvicorn locally.")
-    p_serve.add_argument("--port", default=8765, type=int)
+    p_serve.add_argument("--port", default=7777, type=int)
     p_serve.add_argument("--host", default="127.0.0.1")
     p_serve.add_argument("--reload", action="store_true")
 
