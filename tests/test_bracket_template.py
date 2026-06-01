@@ -6,6 +6,7 @@ from dataclasses import dataclass
 import pytest
 
 from worldcup.model.simulator.bracket_template import (
+    SLOT_ELIGIBLE_GROUPS,
     WC2026_F_FROM_SF,
     WC2026_QF_FROM_R16,
     WC2026_R16_FROM_R32,
@@ -132,7 +133,8 @@ def test_assign_third_place_slots_returns_8_keys():
     assert set(result.keys()) == {f"3RD_{i}" for i in range(1, 9)}
 
 
-def test_assign_third_place_slots_preserves_rank_order():
+def test_assign_third_place_slots_preserves_rank_order_without_labels():
+    """Without group labels, falls back to rank-order assignment."""
     teams = [T(i) for i in range(8)]
     result = assign_third_place_slots(teams)
     for i, team in enumerate(teams):
@@ -144,6 +146,42 @@ def test_assign_third_place_slots_raises_on_wrong_count():
         assign_third_place_slots([T(i) for i in range(7)])
     with pytest.raises(ValueError):
         assign_third_place_slots([T(i) for i in range(9)])
+
+
+def test_assign_with_group_labels_respects_eligibility():
+    """With group labels, teams are assigned to eligible slots only."""
+    groups = list("ABCDEFGH")  # 8 groups qualifying
+    teams = [T(i) for i in range(8)]
+    result = assign_third_place_slots(teams, group_labels=groups)
+    assert len(result) == 8
+    assert set(result.keys()) == {f"3RD_{i}" for i in range(1, 9)}
+    # Verify every team is assigned to an eligible slot
+    group_of_team = dict(zip(teams, groups))
+    for slot_label, _idx, eligible in SLOT_ELIGIBLE_GROUPS:
+        team = result[slot_label]
+        assert group_of_team[team] in eligible, (
+            f"{slot_label}: team from group {group_of_team[team]} not in {eligible}"
+        )
+
+
+def test_assign_all_495_combinations_succeed():
+    """Every C(12,8)=495 combination must produce a valid assignment."""
+    from itertools import combinations
+    all_groups = list("ABCDEFGHIJKL")
+    for combo in combinations(all_groups, 8):
+        groups = list(combo)
+        teams = [T(i) for i in range(8)]
+        result = assign_third_place_slots(teams, group_labels=groups)
+        assert result is not None, f"No valid assignment for {combo}"
+        assert len(result) == 8
+        # Check eligibility
+        group_of_team = dict(zip(teams, groups))
+        for slot_label, _idx, eligible in SLOT_ELIGIBLE_GROUPS:
+            team = result[slot_label]
+            assert group_of_team[team] in eligible, (
+                f"Combo {combo}: {slot_label} got group {group_of_team[team]}, "
+                f"expected one of {eligible}"
+            )
 
 
 # ---------------------------------------------------------------------------

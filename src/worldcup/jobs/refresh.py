@@ -52,46 +52,82 @@ async def run_refresh(
             )).scalar_one()
             competition_id = comp.id
 
-    fixtures_summary = await ingest_teams_and_fixtures(football_client)
-    log.info("ingest.fixtures", **fixtures_summary)
+    # --- Ingest phase: each source is best-effort so blocked/unreachable
+    #     services don't prevent the rest of the pipeline from running. ---
 
-    results_summary = await ingest_completed_results(football_client)
-    log.info("ingest.results", **results_summary)
+    result_match_ids: list[int] = []
 
-    ratings_summary = await load_seed_ratings()
-    log.info("ratings.seed", **ratings_summary)
+    try:
+        fixtures_summary = await ingest_teams_and_fixtures(football_client)
+        log.info("ingest.fixtures", **fixtures_summary)
+    except Exception as exc:  # noqa: BLE001
+        log.warning("ingest.fixtures.failed", error=str(exc))
 
-    players_summary = await load_seed_players()
-    log.info("players.seed", **players_summary)
+    try:
+        results_summary = await ingest_completed_results(football_client)
+        log.info("ingest.results", **results_summary)
+        result_match_ids = results_summary.get("match_ids", [])
+    except Exception as exc:  # noqa: BLE001
+        log.warning("ingest.results.failed", error=str(exc))
 
-    elo_summary = await apply_elo_updates(results_summary["match_ids"])
-    log.info("elo.updates", **elo_summary)
+    try:
+        ratings_summary = await load_seed_ratings()
+        log.info("ratings.seed", **ratings_summary)
+    except Exception as exc:  # noqa: BLE001
+        log.warning("ratings.seed.failed", error=str(exc))
+
+    try:
+        players_summary = await load_seed_players()
+        log.info("players.seed", **players_summary)
+    except Exception as exc:  # noqa: BLE001
+        log.warning("players.seed.failed", error=str(exc))
+
+    try:
+        elo_summary = await apply_elo_updates(result_match_ids)
+        log.info("elo.updates", **elo_summary)
+    except Exception as exc:  # noqa: BLE001
+        log.warning("elo.updates.failed", error=str(exc))
 
     if gnews_collector is not None:
-        news_summary = await ingest_news_for_teams(gnews_collector)
-        log.info("ingest.news", **news_summary)
+        try:
+            news_summary = await ingest_news_for_teams(gnews_collector)
+            log.info("ingest.news", **news_summary)
+        except Exception as exc:  # noqa: BLE001
+            log.warning("ingest.news.failed", error=str(exc))
     else:
         log.warning("ingest.news.skipped_no_collector")
 
     if reddit_collector is not None:
-        reddit_summary = await ingest_reddit_for_competition(reddit_collector)
-        log.info("ingest.reddit", **reddit_summary)
+        try:
+            reddit_summary = await ingest_reddit_for_competition(reddit_collector)
+            log.info("ingest.reddit", **reddit_summary)
+        except Exception as exc:  # noqa: BLE001
+            log.warning("ingest.reddit.failed", error=str(exc))
     else:
         log.warning("ingest.reddit.skipped_no_collector")
 
     if claude_client is not None and not claude_client.is_disabled():
-        sentiment_summary = await score_unscored_items(claude_client, limit=50)
-        log.info("sentiment.score", **sentiment_summary)
-        agg_summary = await aggregate_team_sentiment(as_of=as_of, lookback_hours=72)
-        log.info("sentiment.aggregate", **agg_summary)
+        try:
+            sentiment_summary = await score_unscored_items(claude_client, limit=50)
+            log.info("sentiment.score", **sentiment_summary)
+            agg_summary = await aggregate_team_sentiment(as_of=as_of, lookback_hours=72)
+            log.info("sentiment.aggregate", **agg_summary)
+        except Exception as exc:  # noqa: BLE001
+            log.warning("sentiment.failed", error=str(exc))
     else:
         log.warning("sentiment.skipped_no_or_disabled_claude")
 
-    odds_summary = await ingest_outright_winner(poly_collector)
-    log.info("ingest.polymarket", **odds_summary)
+    try:
+        odds_summary = await ingest_outright_winner(poly_collector)
+        log.info("ingest.polymarket", **odds_summary)
+    except Exception as exc:  # noqa: BLE001
+        log.warning("ingest.polymarket.failed", error=str(exc))
 
-    top_scorer_market_summary = await ingest_top_scorer_market(poly_collector)
-    log.info("ingest.polymarket.top_scorer", **top_scorer_market_summary)
+    try:
+        top_scorer_market_summary = await ingest_top_scorer_market(poly_collector)
+        log.info("ingest.polymarket.top_scorer", **top_scorer_market_summary)
+    except Exception as exc:  # noqa: BLE001
+        log.warning("ingest.polymarket.top_scorer.failed", error=str(exc))
 
     snap, sim_result = await generate_simulated_forecast(trigger=trigger, n_iterations=2_000)
     log.info("forecast.tournament", snapshot_id=snap.id, model_version=snap.model_version)

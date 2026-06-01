@@ -91,10 +91,11 @@ class SimulationResult:
 def _rank_third_placed(
     third_teams: list[Any],
     standings_maps: list[dict],
+    group_labels: list[str],
     rng: random.Random,
     k: int = 8,
-) -> list[Any]:
-    """Rank the 12 third-placed teams and return the best k.
+) -> tuple[list[Any], list[str]]:
+    """Rank the 12 third-placed teams and return the best k with group origins.
 
     Ranking criteria (FIFA WC 2026):
       1. Points
@@ -104,15 +105,19 @@ def _rank_third_placed(
 
     third_teams: list of 12 third-placed team handles (one per group)
     standings_maps: list of 12 dicts (one per group), each mapping team → _Standing
+    group_labels: list of 12 group letters ("A" through "L")
+
+    Returns (teams, labels) — both length k, in descending rank order.
     """
     stats = []
-    for team, smap in zip(third_teams, standings_maps):
+    for team, smap, label in zip(third_teams, standings_maps, group_labels):
         s = smap[team]
-        stats.append((team, s.points, s.gd, s.gf, rng.random()))
+        stats.append((team, label, s.points, s.gd, s.gf, rng.random()))
 
     # Sort descending by (points, gd, gf), then ascending random for lots
-    stats.sort(key=lambda x: (-x[1], -x[2], -x[3], x[4]))
-    return [x[0] for x in stats[:k]]
+    stats.sort(key=lambda x: (-x[2], -x[3], -x[4], x[5]))
+    top_k = stats[:k]
+    return [x[0] for x in top_k], [x[1] for x in top_k]
 
 
 def _seed_bracket_from_template(
@@ -181,10 +186,12 @@ def simulate_tournament(
 
         # Collect 3rd-placed teams and rank them by points/GD/GF
         third_placed = [standings[2] for standings in group_standings]
-        ranked_thirds = _rank_third_placed(third_placed, standings_maps, rng=iter_rng, k=8)
+        ranked_thirds, third_group_labels = _rank_third_placed(
+            third_placed, standings_maps, _GROUP_LABELS, rng=iter_rng, k=8,
+        )
 
-        # Assign 3rd-place slots (v0: by rank order)
-        third_slot_map = assign_third_place_slots(ranked_thirds)
+        # Assign 3rd-place slots using FIFA eligibility constraints
+        third_slot_map = assign_third_place_slots(ranked_thirds, third_group_labels)
 
         # Build the 32-team seeded bracket following the FIFA template
         seeded = _seed_bracket_from_template(group_standings, third_slot_map)

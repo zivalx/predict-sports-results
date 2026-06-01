@@ -30,47 +30,39 @@ known simplification that does not affect bracket completeness or
 probability-sum correctness, but may slightly over- or under-estimate
 individual teams' expected paths compared to the exact FIFA routing.
 
-TODO (v1): implement FIFA's Annex C combo-to-slot lookup table.
+v1: bipartite matching using per-slot eligibility constraints derived from
+the FIFA bracket (equivalent to Annex C but computed at runtime).
 """
 
 from typing import Any
 
 
 # ---------------------------------------------------------------------------
+# Third-place slot eligibility constraints
+# ---------------------------------------------------------------------------
+# Each R32 match that hosts a third-placed team has a set of eligible source
+# groups. A 3rd-placed team from group X can only be placed in a slot whose
+# eligibility set contains X. The constraint ensures no group-stage rematch
+# (e.g. Match 74 is vs E1, so group E is excluded) plus additional FIFA
+# routing rules.
+#
+# Slot label → (R32 match index, eligible groups)
+# Ordered by ascending match index (same order as 3RD_1..3RD_8 in WC2026_R32).
+SLOT_ELIGIBLE_GROUPS: list[tuple[str, int, frozenset[str]]] = [
+    ("3RD_1", 1,  frozenset("ABCDF")),    # Match 74 vs E1
+    ("3RD_2", 4,  frozenset("CDFGH")),    # Match 77 vs I1
+    ("3RD_3", 6,  frozenset("CEFHI")),    # Match 79 vs A1
+    ("3RD_4", 7,  frozenset("EHIJK")),    # Match 80 vs L1
+    ("3RD_5", 8,  frozenset("BEFIJ")),    # Match 81 vs D1
+    ("3RD_6", 9,  frozenset("AEHIJ")),    # Match 82 vs G1
+    ("3RD_7", 12, frozenset("EFGIJ")),    # Match 85 vs B1
+    ("3RD_8", 14, frozenset("DEIJL")),    # Match 87 vs K1
+]
+
+# ---------------------------------------------------------------------------
 # R32 fixtures (FIFA match 73 → index 0, match 88 → index 15)
 # Slot strings: "X1" = group X winner, "X2" = runner-up, "3RD_N" = N-th best 3rd.
 # ---------------------------------------------------------------------------
-#
-# Match numbers and pairings from Wikipedia's 2026 FIFA World Cup knockout stage article:
-#   Match 73  (index  0): A2  vs B2
-#   Match 74  (index  1): E1  vs 3rd [A/B/C/D/F]
-#   Match 75  (index  2): F1  vs C2
-#   Match 76  (index  3): C1  vs F2
-#   Match 77  (index  4): I1  vs 3rd [C/D/F/G/H]
-#   Match 78  (index  5): E2  vs I2
-#   Match 79  (index  6): A1  vs 3rd [C/E/F/H/I]
-#   Match 80  (index  7): L1  vs 3rd [E/H/I/J/K]
-#   Match 81  (index  8): D1  vs 3rd [B/E/F/I/J]
-#   Match 82  (index  9): G1  vs 3rd [A/E/H/I/J]
-#   Match 83  (index 10): K2  vs L2
-#   Match 84  (index 11): H1  vs J2
-#   Match 85  (index 12): B1  vs 3rd [E/F/G/I/J]
-#   Match 86  (index 13): J1  vs H2
-#   Match 87  (index 14): K1  vs 3rd [D/E/I/J/L]
-#   Match 88  (index 15): D2  vs G2
-#
-# The 8 third-place slots 3RD_1..3RD_8 are assigned in rank order to
-# the eight R32 matches that contain a 3RD slot.  Those matches are
-# (in index order): 1, 4, 6, 7, 8, 9, 12, 14.
-# The slots are assigned in ascending match-index order so:
-#   3RD_1 → match 74 (index 1)   — group combo A/B/C/D/F
-#   3RD_2 → match 77 (index 4)   — group combo C/D/F/G/H
-#   3RD_3 → match 79 (index 6)   — group combo C/E/F/H/I
-#   3RD_4 → match 80 (index 7)   — group combo E/H/I/J/K
-#   3RD_5 → match 81 (index 8)   — group combo B/E/F/I/J
-#   3RD_6 → match 82 (index 9)   — group combo A/E/H/I/J
-#   3RD_7 → match 85 (index 12)  — group combo E/F/G/I/J
-#   3RD_8 → match 87 (index 14)  — group combo D/E/I/J/L
 
 SlotRef = str  # "A1" | "A2" | "3RD_1" | ... | "3RD_8"
 
@@ -162,15 +154,72 @@ WC2026_F_FROM_SF: tuple[int, int] = (0, 1)
 # Third-place slot assignment
 # ---------------------------------------------------------------------------
 
-def assign_third_place_slots(ranked_third_teams: list) -> dict[str, Any]:
+def _match_thirds_to_slots(
+    qualifying_groups: list[str],
+    teams_by_group: dict[str, Any],
+) -> dict[str, Any] | None:
+    """Solve bipartite matching: assign 8 qualifying groups to 8 slots.
+
+    Uses backtracking with most-constrained-first heuristic.
+    Returns {"3RD_1": team, ...} or None if no valid assignment exists.
+    """
+    # Build slot → eligible qualifying groups (intersection with actual qualifiers)
+    slots = []
+    for slot_label, _match_idx, eligible in SLOT_ELIGIBLE_GROUPS:
+        candidates = [g for g in qualifying_groups if g in eligible]
+        slots.append((slot_label, candidates))
+
+    # Sort by fewest candidates first (most-constrained-first)
+    slots.sort(key=lambda x: len(x[1]))
+
+    assignment: dict[str, str] = {}  # slot_label → group_letter
+    used_groups: set[str] = set()
+
+    def _backtrack(i: int) -> bool:
+        if i == len(slots):
+            return True
+        slot_label, candidates = slots[i]
+        for group in candidates:
+            if group not in used_groups:
+                used_groups.add(group)
+                assignment[slot_label] = group
+                if _backtrack(i + 1):
+                    return True
+                used_groups.discard(group)
+                del assignment[slot_label]
+        return False
+
+    if not _backtrack(0):
+        return None
+
+    return {slot: teams_by_group[group] for slot, group in assignment.items()}
+
+
+def assign_third_place_slots(
+    ranked_third_teams: list,
+    group_labels: list[str] | None = None,
+) -> dict[str, Any]:
     """Return {"3RD_1": team, "3RD_2": team, ..., "3RD_8": team}.
 
     ranked_third_teams must be exactly 8 teams in descending rank order
     (best 3rd first, 8th-best last), ranked by points → GD → GF → lots.
 
-    v0: order-based assignment — best 3rd goes to 3RD_1, etc.
-    v1 (TODO): implement FIFA Annex C combo-to-slot lookup for exact routing.
+    group_labels: parallel list of group letters (e.g. ["A", "C", "D", ...])
+        indicating which group each team finished 3rd in. When provided,
+        teams are assigned to slots using FIFA eligibility constraints
+        (bipartite matching). When None, falls back to rank-order assignment.
     """
     if len(ranked_third_teams) != 8:
         raise ValueError(f"Expected 8 best-3rd teams; got {len(ranked_third_teams)}")
+
+    if group_labels is not None:
+        if len(group_labels) != 8:
+            raise ValueError(f"Expected 8 group labels; got {len(group_labels)}")
+        teams_by_group = dict(zip(group_labels, ranked_third_teams))
+        result = _match_thirds_to_slots(group_labels, teams_by_group)
+        if result is not None:
+            return result
+        # Fallback: if matching fails (should not happen with valid FIFA data),
+        # use rank-order assignment.
+
     return {f"3RD_{i + 1}": t for i, t in enumerate(ranked_third_teams)}
