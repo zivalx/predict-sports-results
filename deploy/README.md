@@ -62,8 +62,6 @@ shipped repo without rewriting paths — the venv lives under /opt/worldcup/code
 worldcup depends on the `connectors` library via a git URL. `uv sync` pulls it automatically
 from GitHub — no separate checkout needed.
 
-Adjust the `ExecStart` path in the systemd unit if `.venv` lives elsewhere.
-
 ## 4. Environment file
 
 ```bash
@@ -87,8 +85,6 @@ EOF
 
 ```bash
 sudo cp /opt/worldcup/code/deploy/worldcup.service /etc/systemd/system/worldcup.service
-# Adjust ExecStart path if your .venv is at /opt/worldcup/code/.venv:
-sudo sed -i 's|/opt/worldcup/.venv|/opt/worldcup/code/.venv|' /etc/systemd/system/worldcup.service
 sudo systemctl daemon-reload
 sudo systemctl enable --now worldcup.service
 sudo systemctl status worldcup.service

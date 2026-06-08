@@ -8,7 +8,7 @@ User=worldcup
 Group=worldcup
 WorkingDirectory=/opt/worldcup
 EnvironmentFile=/opt/worldcup/.env
-ExecStart=/opt/worldcup/.venv/bin/uvicorn worldcup.api.app:app --host 127.0.0.1 --port 8765
+ExecStart=/opt/worldcup/code/.venv/bin/uvicorn worldcup.api.app:app --host 127.0.0.1 --port 8765
 Restart=on-failure
 RestartSec=5
 
