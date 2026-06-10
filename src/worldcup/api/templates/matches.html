@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}World Cup 2026 · All Matches{% endblock %}
+{% block content %}
+
+<div class="section-header" style="margin-top: 1.5rem;">
+  <h2 class="section-title">All matches &mdash; {{ competition_name }}</h2>
+</div>
+
+{% for date_label, matches in days.items() %}
+<div style="margin-bottom: 2rem;">
+  <h3 style="font-size: 1rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 0.75rem; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem;">
+    {{ date_label }}
+  </h3>
+
+  <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+    {% for m in matches %}
+    <a href="/match/{{ m.match_id }}" class="match-row" style="display: grid; grid-template-columns: 80px 1fr 80px 100px 60px; align-items: center; gap: 0.75rem; padding: 0.6rem 1rem; background: var(--surface); border: 1px solid var(--border); border-radius: 0.5rem; text-decoration: none; color: inherit; transition: border-color 0.15s;">
+      <span class="muted" style="font-size: 0.8rem;">{{ m.kickoff_utc.strftime('%H:%M UTC') }}</span>
+
+      <span style="font-weight: 500;">
+        {% if m.status == 'FT' and m.home_score is not none %}
+          {{ m.home_name }} <strong>{{ m.home_score }} - {{ m.away_score }}</strong> {{ m.away_name }}
+        {% else %}
+          {{ m.home_name }} v {{ m.away_name }}
+        {% endif %}
+      </span>
+
+      <span class="badge" style="font-size: 0.7rem; justify-self: center;">
+        {{ ('Group ' + m.group_label) if m.group_label else m.stage }}
+      </span>
+
+      {% if m.predicted_score and m.status != 'FT' %}
+        <span style="text-align: center;">
+          <span class="predicted-score">{{ m.predicted_score }}</span>
+          <span class="muted" style="font-size: 0.7rem;">({{ '%.0f' % (m.predicted_score_prob * 100) }}%)</span>
+        </span>
+      {% elif m.status == 'FT' %}
+        <span class="muted" style="text-align: center; font-size: 0.75rem;">FT</span>
+      {% else %}
+        <span></span>
+      {% endif %}
+
+      {% if m.p_home is not none and m.status != 'FT' %}
+        <span style="font-size: 0.75rem; color: var(--text-secondary); text-align: right;">
+          {{ '%.0f' % (m.p_home * 100) }}-{{ '%.0f' % (m.p_draw * 100) }}-{{ '%.0f' % (m.p_away * 100) }}
+        </span>
+      {% else %}
+        <span></span>
+      {% endif %}
+    </a>
+    {% endfor %}
+  </div>
+</div>
+{% endfor %}
+
+{% endblock %}

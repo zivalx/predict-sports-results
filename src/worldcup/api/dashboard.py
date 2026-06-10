@@ -1060,6 +1060,79 @@ async def results(request: Request):
     )
 
 
+@router.get("/matches", response_class=HTMLResponse)
+async def matches(request: Request):
+    settings = get_settings()
+    now = datetime.now(timezone.utc)
+
+    async with get_session() as session:
+        comp = (await session.execute(
+            select(Competition).where(Competition.code == settings.db_competition_code)
+        )).scalar_one_or_none()
+        if comp is None:
+            return request.app.state.templates.TemplateResponse(
+                request=request, name="matches.html",
+                context={"days": [], "competition_name": "(unseeded)"},
+            )
+
+        snap = (await session.execute(
+            select(ForecastSnapshot)
+            .where(ForecastSnapshot.competition_id == comp.id)
+            .order_by(ForecastSnapshot.snapshot_date.desc())
+        )).scalars().first()
+
+        all_matches = (await session.execute(
+            select(Match)
+            .where(Match.competition_id == comp.id)
+            .where(Match.home_team_id.is_not(None))
+            .where(Match.away_team_id.is_not(None))
+            .order_by(Match.kickoff_utc.asc())
+        )).scalars().all()
+
+        teams_by_id = {
+            t.id: t for t in (await session.execute(select(Team))).scalars().all()
+        }
+
+        mf_by_match: dict[int, MatchForecast] = {}
+        if snap is not None:
+            mfs = (await session.execute(
+                select(MatchForecast).where(MatchForecast.snapshot_id == snap.id)
+            )).scalars().all()
+            mf_by_match = {mf.match_id: mf for mf in mfs}
+
+        # Group by date
+        from collections import OrderedDict
+        days: OrderedDict[str, list] = OrderedDict()
+        for m in all_matches:
+            date_key = m.kickoff_utc.strftime("%A %-d %B")
+            mf = mf_by_match.get(m.id)
+            row = {
+                "match_id": m.id,
+                "home_name": teams_by_id[m.home_team_id].name,
+                "away_name": teams_by_id[m.away_team_id].name,
+                "kickoff_utc": m.kickoff_utc,
+                "group_label": m.group_label,
+                "stage": m.stage,
+                "status": m.status,
+                "home_score": m.home_score,
+                "away_score": m.away_score,
+                "p_home": mf.p_home if mf else None,
+                "p_draw": mf.p_draw if mf else None,
+                "p_away": mf.p_away if mf else None,
+                "predicted_score": mf.predicted_score if mf else None,
+                "predicted_score_prob": mf.predicted_score_prob if mf else None,
+                "expected_goals": mf.expected_goals if mf else None,
+                "edge_vs_poly": mf.edge_vs_poly if mf else None,
+                "p_home_poly": mf.p_home_poly if mf else None,
+            }
+            days.setdefault(date_key, []).append(row)
+
+    return request.app.state.templates.TemplateResponse(
+        request=request, name="matches.html",
+        context={"days": dict(days), "competition_name": comp.name},
+    )
+
+
 @router.get("/status", response_class=HTMLResponse)
 async def status(request: Request):
     from worldcup.jobs import refresh as refresh_mod
