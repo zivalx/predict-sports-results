@@ -284,7 +284,7 @@ async def test_run_refresh_survives_erroring_claude_client(
     error_claude = FakeClaudeClient(raise_on_call=httpx.HTTPError("API unavailable"))
 
     as_of = datetime(2026, 6, 5, tzinfo=timezone.utc)
-    snap = await run_refresh(
+    snap, rr = await run_refresh(
         trigger="manual",
         football_client=football_client,
         poly_collector=poly_collector,
@@ -294,6 +294,7 @@ async def test_run_refresh_survives_erroring_claude_client(
 
     # Pipeline must complete and return a snapshot
     assert isinstance(snap, ForecastSnapshot)
+    assert rr.finished_at is not None
 
     # Sentiment should be zero (all failed)
     async with get_session() as session:

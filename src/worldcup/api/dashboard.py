@@ -1011,3 +1011,15 @@ async def results(request: Request):
         name="results.html",
         context={"matches": rows, "competition_start": competition_start},
     )
+
+
+@router.get("/status", response_class=HTMLResponse)
+async def status(request: Request):
+    from worldcup.jobs import refresh as refresh_mod
+    rr = refresh_mod.last_refresh_result
+    refresh_data = rr.to_dict() if rr else None
+    return request.app.state.templates.TemplateResponse(
+        request=request,
+        name="status.html",
+        context={"refresh": refresh_data},
+    )

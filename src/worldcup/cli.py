@@ -50,7 +50,7 @@ async def _run_refresh(trigger: str) -> int:
 
     football, poly, gnews, reddit, claude = _default_clients()
     try:
-        snap = await run_refresh(
+        snap, rr = await run_refresh(
             trigger=trigger,
             football_client=football,
             poly_collector=poly,
@@ -59,8 +59,14 @@ async def _run_refresh(trigger: str) -> int:
             claude_client=claude,
             as_of=datetime.now(timezone.utc),
         )
-        print(f"refresh ok — snapshot_id={snap.id}")
-        return 0
+        failed = [s.name for s in rr.steps if not s.ok]
+        if snap:
+            print(f"refresh ok — snapshot_id={snap.id}")
+        else:
+            print("refresh completed with errors — no snapshot created")
+        if failed:
+            print(f"  failed steps: {', '.join(failed)}")
+        return 0 if rr.ok else 1
     finally:
         if hasattr(football, "aclose"):
             await football.aclose()

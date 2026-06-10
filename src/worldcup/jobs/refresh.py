@@ -1,3 +1,4 @@
+import time
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
@@ -30,6 +31,51 @@ from worldcup.render.writer import write_digest
 log = get_logger(__name__)
 
 
+class StepResult:
+    """Outcome of a single pipeline step."""
+    __slots__ = ("name", "ok", "detail", "elapsed_s")
+
+    def __init__(self, name: str, ok: bool, detail: str = "", elapsed_s: float = 0.0):
+        self.name = name
+        self.ok = ok
+        self.detail = detail
+        self.elapsed_s = elapsed_s
+
+    def to_dict(self) -> dict:
+        return {"name": self.name, "ok": self.ok, "detail": self.detail, "elapsed_s": round(self.elapsed_s, 2)}
+
+
+class RefreshResult:
+    """Aggregated result of a full pipeline run."""
+
+    def __init__(self, trigger: str, started_at: datetime):
+        self.trigger = trigger
+        self.started_at = started_at
+        self.finished_at: Optional[datetime] = None
+        self.snapshot_id: Optional[int] = None
+        self.steps: list[StepResult] = []
+        self.ok = True
+
+    def add(self, step: StepResult):
+        self.steps.append(step)
+        if not step.ok:
+            self.ok = False
+
+    def to_dict(self) -> dict:
+        return {
+            "trigger": self.trigger,
+            "ok": self.ok,
+            "started_at": self.started_at.isoformat(),
+            "finished_at": self.finished_at.isoformat() if self.finished_at else None,
+            "snapshot_id": self.snapshot_id,
+            "steps": [s.to_dict() for s in self.steps],
+        }
+
+
+# Module-level ref to the last refresh result — read by the /status page.
+last_refresh_result: Optional[RefreshResult] = None
+
+
 async def run_refresh(
     trigger: str,
     football_client,
@@ -40,10 +86,28 @@ async def run_refresh(
     claude_client=None,
     as_of: Optional[datetime] = None,
     competition_id: Optional[int] = None,
-) -> ForecastSnapshot:
-    """End-to-end pipeline."""
+) -> tuple[Optional[ForecastSnapshot], RefreshResult]:
+    """End-to-end pipeline. Returns (snapshot_or_none, refresh_result)."""
+    global last_refresh_result
     as_of = as_of or datetime.now(timezone.utc)
     settings = get_settings()
+    result = RefreshResult(trigger=trigger, started_at=as_of)
+
+    async def _step(name: str, coro):
+        """Run a pipeline step, track timing and success/failure."""
+        t0 = time.monotonic()
+        try:
+            rv = await coro
+            elapsed = time.monotonic() - t0
+            detail = str(rv) if isinstance(rv, dict) else ""
+            result.add(StepResult(name, ok=True, detail=detail, elapsed_s=elapsed))
+            log.info(name, elapsed_s=round(elapsed, 2), **(rv if isinstance(rv, dict) else {}))
+            return rv
+        except Exception as exc:  # noqa: BLE001
+            elapsed = time.monotonic() - t0
+            result.add(StepResult(name, ok=False, detail=str(exc), elapsed_s=elapsed))
+            log.warning(f"{name}.failed", error=str(exc), elapsed_s=round(elapsed, 2))
+            return None
 
     if competition_id is None:
         async with get_session() as session:
@@ -52,124 +116,105 @@ async def run_refresh(
             )).scalar_one()
             competition_id = comp.id
 
-    # --- Ingest phase: each source is best-effort so blocked/unreachable
-    #     services don't prevent the rest of the pipeline from running. ---
+    # --- Ingest phase: each source is best-effort ---
 
     result_match_ids: list[int] = []
 
-    try:
-        fixtures_summary = await ingest_teams_and_fixtures(football_client)
-        log.info("ingest.fixtures", **fixtures_summary)
-    except Exception as exc:  # noqa: BLE001
-        log.warning("ingest.fixtures.failed", error=str(exc))
+    await _step("ingest.fixtures", ingest_teams_and_fixtures(football_client))
 
-    try:
-        results_summary = await ingest_completed_results(football_client)
-        log.info("ingest.results", **results_summary)
+    results_summary = await _step("ingest.results", ingest_completed_results(football_client))
+    if isinstance(results_summary, dict):
         result_match_ids = results_summary.get("match_ids", [])
-    except Exception as exc:  # noqa: BLE001
-        log.warning("ingest.results.failed", error=str(exc))
 
-    try:
-        ratings_summary = await load_seed_ratings()
-        log.info("ratings.seed", **ratings_summary)
-    except Exception as exc:  # noqa: BLE001
-        log.warning("ratings.seed.failed", error=str(exc))
-
-    try:
-        players_summary = await load_seed_players()
-        log.info("players.seed", **players_summary)
-    except Exception as exc:  # noqa: BLE001
-        log.warning("players.seed.failed", error=str(exc))
-
-    try:
-        elo_summary = await apply_elo_updates(result_match_ids)
-        log.info("elo.updates", **elo_summary)
-    except Exception as exc:  # noqa: BLE001
-        log.warning("elo.updates.failed", error=str(exc))
+    await _step("ratings.seed", load_seed_ratings())
+    await _step("players.seed", load_seed_players())
+    await _step("elo.updates", apply_elo_updates(result_match_ids))
 
     if gnews_collector is not None:
-        try:
-            news_summary = await ingest_news_for_teams(gnews_collector)
-            log.info("ingest.news", **news_summary)
-        except Exception as exc:  # noqa: BLE001
-            log.warning("ingest.news.failed", error=str(exc))
+        await _step("ingest.news", ingest_news_for_teams(gnews_collector))
     else:
-        log.warning("ingest.news.skipped_no_collector")
+        result.add(StepResult("ingest.news", ok=True, detail="skipped: no collector"))
 
     if reddit_collector is not None:
-        try:
-            reddit_summary = await ingest_reddit_for_competition(reddit_collector)
-            log.info("ingest.reddit", **reddit_summary)
-        except Exception as exc:  # noqa: BLE001
-            log.warning("ingest.reddit.failed", error=str(exc))
+        await _step("ingest.reddit", ingest_reddit_for_competition(reddit_collector))
     else:
-        log.warning("ingest.reddit.skipped_no_collector")
+        result.add(StepResult("ingest.reddit", ok=True, detail="skipped: no collector"))
 
     if claude_client is not None and not claude_client.is_disabled():
+        await _step("sentiment", score_unscored_items(claude_client, limit=50))
+        await _step("sentiment.aggregate", aggregate_team_sentiment(as_of=as_of, lookback_hours=72))
+    else:
+        result.add(StepResult("sentiment", ok=True, detail="skipped: no claude"))
+
+    await _step("ingest.polymarket", ingest_outright_winner(poly_collector))
+    await _step("ingest.polymarket.top_scorer", ingest_top_scorer_market(poly_collector))
+
+    # --- Forecast phase: simulator is critical, rest is best-effort ---
+
+    snap = None
+    sim_result = None
+
+    sim_rv = await _step("forecast.tournament", generate_simulated_forecast(trigger=trigger, n_iterations=2_000))
+    if sim_rv is not None:
+        snap, sim_result = sim_rv
+
+    if snap is not None:
+        await _step("forecast.per_match", generate_match_forecasts(snapshot_id=snap.id, as_of=as_of))
+
+        if sim_result is not None:
+            await _step("forecast.top_scorer", generate_top_scorer_forecast(snap.id, sim_result))
+        else:
+            result.add(StepResult("forecast.top_scorer", ok=True, detail="skipped: no sim result"))
+
+        # --- Rationale phase ---
+        if claude_client is not None and not claude_client.is_disabled():
+            try:
+                t0 = time.monotonic()
+                horizon_end = as_of + timedelta(days=settings.rationale_horizon_days)
+                async with get_session() as session:
+                    rows = (await session.execute(
+                        select(MatchForecast, Match)
+                        .join(Match, MatchForecast.match_id == Match.id)
+                        .where(MatchForecast.snapshot_id == snap.id)
+                        .where(Match.kickoff_utc <= horizon_end)
+                        .order_by(Match.kickoff_utc.asc())
+                    )).all()
+                match_forecasts = [mf for mf, _ in rows]
+                rationale_count = 0
+                for mf in match_forecasts:
+                    try:
+                        rv = await generate_rationale_for_match(claude_client, match_forecast_id=mf.id)
+                        if rv.get("rationale_written"):
+                            rationale_count += 1
+                    except TokenBudgetExceeded:
+                        log.warning("rationale.budget_exceeded", written_before_stop=rationale_count)
+                        break
+                elapsed = time.monotonic() - t0
+                result.add(StepResult("rationale", ok=True, detail=f"{rationale_count} written", elapsed_s=elapsed))
+                log.info("rationale.batch", rationales_written=rationale_count)
+            except Exception as exc:  # noqa: BLE001
+                elapsed = time.monotonic() - t0
+                result.add(StepResult("rationale", ok=False, detail=str(exc), elapsed_s=elapsed))
+                log.warning("rationale.failed", error=str(exc))
+        else:
+            result.add(StepResult("rationale", ok=True, detail="skipped: no claude"))
+
+        # --- Render phase ---
         try:
-            sentiment_summary = await score_unscored_items(claude_client, limit=50)
-            log.info("sentiment.score", **sentiment_summary)
-            agg_summary = await aggregate_team_sentiment(as_of=as_of, lookback_hours=72)
-            log.info("sentiment.aggregate", **agg_summary)
+            t0 = time.monotonic()
+            text = await render_digest_markdown(snapshot_id=snap.id, as_of=as_of)
+            path = await write_digest(text, date_str=as_of.strftime("%Y-%m-%d"))
+            elapsed = time.monotonic() - t0
+            result.add(StepResult("render.digest", ok=True, detail=str(path), elapsed_s=elapsed))
+            log.info("render.digest", path=str(path))
         except Exception as exc:  # noqa: BLE001
-            log.warning("sentiment.failed", error=str(exc))
+            elapsed = time.monotonic() - t0
+            result.add(StepResult("render.digest", ok=False, detail=str(exc), elapsed_s=elapsed))
+            log.warning("render.digest.failed", error=str(exc))
     else:
-        log.warning("sentiment.skipped_no_or_disabled_claude")
+        result.add(StepResult("forecast.tournament", ok=False, detail="no snapshot created — skipping downstream"))
 
-    try:
-        odds_summary = await ingest_outright_winner(poly_collector)
-        log.info("ingest.polymarket", **odds_summary)
-    except Exception as exc:  # noqa: BLE001
-        log.warning("ingest.polymarket.failed", error=str(exc))
-
-    try:
-        top_scorer_market_summary = await ingest_top_scorer_market(poly_collector)
-        log.info("ingest.polymarket.top_scorer", **top_scorer_market_summary)
-    except Exception as exc:  # noqa: BLE001
-        log.warning("ingest.polymarket.top_scorer.failed", error=str(exc))
-
-    snap, sim_result = await generate_simulated_forecast(trigger=trigger, n_iterations=2_000)
-    log.info("forecast.tournament", snapshot_id=snap.id, model_version=snap.model_version)
-
-    per_match_summary = await generate_match_forecasts(snapshot_id=snap.id, as_of=as_of)
-    log.info("forecast.per_match", snapshot_id=snap.id, **per_match_summary)
-
-    if sim_result is not None:
-        ts_summary = await generate_top_scorer_forecast(snap.id, sim_result)
-        log.info("forecast.top_scorer", **ts_summary)
-    else:
-        log.warning("forecast.top_scorer.skipped_no_sim_result")
-
-    if claude_client is not None and not claude_client.is_disabled():
-        try:
-            horizon_end = as_of + timedelta(days=settings.rationale_horizon_days)
-            async with get_session() as session:
-                rows = (await session.execute(
-                    select(MatchForecast, Match)
-                    .join(Match, MatchForecast.match_id == Match.id)
-                    .where(MatchForecast.snapshot_id == snap.id)
-                    .where(Match.kickoff_utc <= horizon_end)
-                    .order_by(Match.kickoff_utc.asc())
-                )).all()
-            match_forecasts = [mf for mf, _ in rows]
-            rationale_count = 0
-            for mf in match_forecasts:
-                try:
-                    result = await generate_rationale_for_match(claude_client, match_forecast_id=mf.id)
-                    if result.get("rationale_written"):
-                        rationale_count += 1
-                except TokenBudgetExceeded:
-                    log.warning("rationale.budget_exceeded", written_before_stop=rationale_count)
-                    break
-            log.info("rationale.batch", rationales_written=rationale_count)
-        except Exception as exc:  # noqa: BLE001
-            log.warning("rationale.block_failed", error=str(exc))
-    else:
-        log.warning("rationale.skipped_no_or_disabled_claude")
-
-    text = await render_digest_markdown(snapshot_id=snap.id, as_of=as_of)
-    path = await write_digest(text, date_str=as_of.strftime("%Y-%m-%d"))
-    log.info("render.digest", path=str(path))
-
-    return snap
+    result.finished_at = datetime.now(timezone.utc)
+    result.snapshot_id = snap.id if snap else None
+    last_refresh_result = result
+    return snap, result

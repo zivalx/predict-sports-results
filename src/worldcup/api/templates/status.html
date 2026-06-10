@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}World Cup 2026 · Pipeline Status{% endblock %}
+{% block content %}
+
+<div class="section-header">
+  <h2>Pipeline Status</h2>
+</div>
+
+{% if not refresh %}
+  <p class="muted">No refresh has run yet since the service started.</p>
+{% else %}
+  <div class="card" style="margin-bottom: 1.5rem;">
+    <p><strong>Trigger:</strong> {{ refresh.trigger }}</p>
+    <p><strong>Started:</strong> {{ refresh.started_at }}</p>
+    <p><strong>Finished:</strong> {{ refresh.finished_at or 'running...' }}</p>
+    <p><strong>Snapshot:</strong> {{ refresh.snapshot_id or 'none' }}</p>
+    <p><strong>Overall:</strong>
+      {% if refresh.ok %}
+        <span style="color: var(--color-positive);">OK</span>
+      {% else %}
+        <span style="color: var(--color-negative);">ERRORS</span>
+      {% endif %}
+    </p>
+  </div>
+
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>Step</th>
+        <th>Status</th>
+        <th>Time</th>
+        <th>Detail</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for step in refresh.steps %}
+      <tr>
+        <td><code>{{ step.name }}</code></td>
+        <td>
+          {% if step.ok %}
+            <span style="color: var(--color-positive);">OK</span>
+          {% else %}
+            <span style="color: var(--color-negative);">FAIL</span>
+          {% endif %}
+        </td>
+        <td>{{ step.elapsed_s }}s</td>
+        <td class="muted" style="max-width: 400px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ step.detail[:120] }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% endif %}
+
+{% include "_refresh_button.html" %}
+
+{% endblock %}

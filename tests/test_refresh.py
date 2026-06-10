@@ -65,7 +65,7 @@ async def test_run_refresh_end_to_end(fake_football_client, fake_poly_collector)
     # Fixture kickoff is 2026-06-11; as_of is 2026-06-05 (6 days before).
     # generate_match_forecasts now covers all future scheduled matches.
     as_of = datetime(2026, 6, 5, tzinfo=timezone.utc)
-    snap = await run_refresh(
+    snap, _ = await run_refresh(
         trigger="manual",
         football_client=fake_football_client,
         poly_collector=fake_poly_collector,
@@ -152,7 +152,7 @@ async def test_run_refresh_full_wc_seeds_tournament_forecasts(fake_full_wc_footb
     await seed()
 
     as_of = datetime(2026, 6, 5, tzinfo=timezone.utc)
-    snap = await run_refresh(
+    snap, _ = await run_refresh(
         trigger="manual",
         football_client=fake_full_wc_football_client,
         poly_collector=fake_poly_collector,
@@ -229,7 +229,7 @@ async def test_run_refresh_full_wc_writes_rationales(
     )
 
     as_of = datetime(2026, 6, 5, tzinfo=timezone.utc)
-    snap = await run_refresh(
+    snap, _ = await run_refresh(
         trigger="manual",
         football_client=fake_full_wc_football_client,
         poly_collector=fake_poly_collector,
@@ -306,7 +306,7 @@ async def test_rationale_loop_only_processes_matches_within_horizon(
         token_budget=1_000_000,
     )
 
-    snap = await run_refresh(
+    snap, _ = await run_refresh(
         trigger="manual",
         football_client=client,
         poly_collector=fake_poly_collector,
@@ -351,7 +351,7 @@ async def test_run_refresh_full_wc_writes_top_scorer_forecasts(
 
     # First run the pipeline once to seed the 48 teams via the fixtures ingest
     # (we need them in the DB before adding Player rows that FK to them).
-    snap0 = await run_refresh(
+    snap0, _ = await run_refresh(
         trigger="manual",
         football_client=fake_full_wc_football_client,
         poly_collector=fake_poly_collector,
@@ -372,7 +372,7 @@ async def test_run_refresh_full_wc_writes_top_scorer_forecasts(
         await session.commit()
 
     # Now re-run; this time top-scorer forecasts should be written.
-    snap = await run_refresh(
+    snap, _ = await run_refresh(
         trigger="manual",
         football_client=fake_full_wc_football_client,
         poly_collector=fake_poly_collector,

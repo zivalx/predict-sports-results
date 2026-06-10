@@ -136,8 +136,21 @@ def build_app(
 
     @app.post("/refresh")
     async def refresh():
-        snap = await _trigger_refresh("manual")
-        return {"snapshot_id": snap.id, "trigger": snap.snapshot_trigger}
+        snap, refresh_result = await _trigger_refresh("manual")
+        return {
+            "snapshot_id": snap.id if snap else None,
+            "trigger": snap.snapshot_trigger if snap else "manual",
+            "ok": refresh_result.ok,
+            "steps": [s.to_dict() for s in refresh_result.steps],
+        }
+
+    @app.get("/api/refresh_status")
+    async def refresh_status():
+        from worldcup.jobs import refresh as refresh_mod
+        rr = refresh_mod.last_refresh_result
+        if rr is None:
+            return {"last_refresh": None}
+        return {"last_refresh": rr.to_dict()}
 
     @app.get("/forecast/latest")
     async def forecast_latest():
