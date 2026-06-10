@@ -106,6 +106,10 @@ class TodayMatchRow:
     kickoff_utc: datetime
     group_label: Optional[str]
     stage: str
+    p_home: Optional[float] = None
+    p_draw: Optional[float] = None
+    p_away: Optional[float] = None
+    edge_vs_poly: Optional[float] = None
 
 
 @dataclass
@@ -175,10 +179,24 @@ async def _build_home_context() -> HomeContext:
         teams_by_id = {
             t.id: t for t in (await session.execute(select(Team))).scalars().all()
         }
+
+        # Load match forecasts from latest snapshot
+        mf_by_match: dict[int, MatchForecast] = {}
+        if snap is not None:
+            match_ids = [m.id for m in upcoming]
+            if match_ids:
+                mfs = (await session.execute(
+                    select(MatchForecast)
+                    .where(MatchForecast.snapshot_id == snap.id)
+                    .where(MatchForecast.match_id.in_(match_ids))
+                )).scalars().all()
+                mf_by_match = {mf.match_id: mf for mf in mfs}
+
         today_matches: list[TodayMatchRow] = []
         for m in upcoming:
             if m.home_team_id is None or m.away_team_id is None:
                 continue
+            mf = mf_by_match.get(m.id)
             today_matches.append(TodayMatchRow(
                 match_id=m.id,
                 home_name=teams_by_id[m.home_team_id].name,
@@ -186,6 +204,10 @@ async def _build_home_context() -> HomeContext:
                 kickoff_utc=m.kickoff_utc,
                 group_label=m.group_label,
                 stage=m.stage,
+                p_home=mf.p_home if mf else None,
+                p_draw=mf.p_draw if mf else None,
+                p_away=mf.p_away if mf else None,
+                edge_vs_poly=mf.edge_vs_poly if mf else None,
             ))
             if len(today_matches) >= 3:
                 break
@@ -238,6 +260,10 @@ async def home(request: Request):
             "kickoff_utc": m.kickoff_utc,
             "group_label": m.group_label,
             "stage": m.stage,
+            "p_home": m.p_home,
+            "p_draw": m.p_draw,
+            "p_away": m.p_away,
+            "edge_vs_poly": m.edge_vs_poly,
         }
         for m in ctx.today_matches
     ]
