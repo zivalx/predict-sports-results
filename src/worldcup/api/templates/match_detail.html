@@ -136,6 +136,22 @@
 
 {% endif %}{# end if p_home is not none #}
 
+{# ── Predicted Score ─────────────────────────────────────────── #}
+{% if predicted_score %}
+<div class="predicted-score-section">
+  <div class="section-header" style="margin-bottom: 0.5rem;">
+    <h2 class="section-title">Predicted score</h2>
+  </div>
+  <div style="display: flex; align-items: baseline; gap: 0.75rem; margin-bottom: 0.5rem;">
+    <span style="font-size: 2rem; font-weight: 700; color: var(--accent);">{{ predicted_score }}</span>
+    <span class="muted">({{ '%.0f' % (predicted_score_prob * 100) }}% probability)</span>
+    {% if expected_goals %}
+      <span class="muted">&middot; {{ '%.1f' % expected_goals }} expected total goals</span>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
 {# ── Rationale ────────────────────────────────────────────────── #}
 {% if rationale_md %}
 <div class="rationale-section">

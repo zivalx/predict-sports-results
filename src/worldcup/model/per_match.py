@@ -66,8 +66,12 @@ async def generate_match_forecasts(
                 continue
 
             model_p = match_probabilities(home_r, away_r)
-            market_p = None  # Plan 3 will populate this from per-match Polymarket markets
+            market_p = None  # populated later by polymarket_matches scraper
             blended = blend_with_market(model_p, market_p)
+
+            # Model-only predicted score (Polymarket blend added later if available)
+            from worldcup.model.score_predict import predict_score
+            prediction = predict_score(home_r, away_r, n_samples=5_000)
 
             session.add(MatchForecast(
                 snapshot_id=snapshot_id,
@@ -80,6 +84,9 @@ async def generate_match_forecasts(
                 p_away_poly=market_p["away"] if market_p else None,
                 edge_vs_poly=0.0 if market_p is None else blended["home"] - market_p["home"],
                 model_version="elo-v0",
+                predicted_score=prediction["score_str"],
+                predicted_score_prob=prediction["prob"],
+                expected_goals=prediction["expected_goals"],
             ))
             forecasts_written += 1
 

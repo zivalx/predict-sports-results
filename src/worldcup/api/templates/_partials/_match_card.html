@@ -24,14 +24,21 @@
     {% endwith %}
   </div>
 
-  {% if m.edge_vs_poly is defined and m.edge_vs_poly is not none %}
   <div class="match-card-footer">
-    <span class="timestamp">Polymarket edge:</span>
-    {% with edge_pp=m.edge_vs_poly * 100 %}
-      {% include "_partials/_edge_chip.html" %}
-    {% endwith %}
+    {% if m.predicted_score is defined and m.predicted_score %}
+      <span class="predicted-score">{{ m.predicted_score }}</span>
+      <span class="timestamp" style="margin-left: 0.25rem;">({{ '%.0f' % (m.predicted_score_prob * 100) }}%)</span>
+      {% if m.expected_goals is defined and m.expected_goals %}
+        <span class="timestamp" style="margin-left: 0.5rem;">{{ '%.1f' % m.expected_goals }} xG</span>
+      {% endif %}
+    {% endif %}
+    {% if m.edge_vs_poly is defined and m.edge_vs_poly is not none and m.p_home_poly is defined and m.p_home_poly is not none %}
+      <span class="timestamp" style="margin-left: auto;">Edge:</span>
+      {% with edge_pp=m.edge_vs_poly * 100 %}
+        {% include "_partials/_edge_chip.html" %}
+      {% endwith %}
+    {% endif %}
   </div>
-  {% endif %}
 
   {% else %}
   <div class="match-card-probs">

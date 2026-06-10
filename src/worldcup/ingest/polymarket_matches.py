@@ -157,6 +157,45 @@ def _extract_three_way(
     return None
 
 
+def _extract_exact_scores(
+    event: dict,
+) -> dict[tuple[int, int], float]:
+    """Extract exact-score market probabilities from the event data.
+
+    Returns {(home_goals, away_goals): probability} for all exact-score markets.
+    Slug pattern: ``{event_slug}-exact-score-{h}-{a}``
+    """
+    markets = event.get("markets") or []
+    event_slug = event.get("slug", "")
+    scores: dict[tuple[int, int], float] = {}
+
+    for mkt in markets:
+        mkt_slug = mkt.get("slug", "")
+        # Match pattern: fifwc-xxx-yyy-date-exact-score-H-A
+        prefix = f"{event_slug}-exact-score-"
+        if not mkt_slug.startswith(prefix):
+            continue
+        if mkt_slug.endswith("-any-other"):
+            continue  # skip the "any other" catch-all
+        suffix = mkt_slug[len(prefix):]
+        parts = suffix.split("-")
+        if len(parts) != 2:
+            continue
+        try:
+            h, a = int(parts[0]), int(parts[1])
+        except ValueError:
+            continue
+        outcome_prices = mkt.get("outcomePrices")
+        if not outcome_prices or not isinstance(outcome_prices, list):
+            continue
+        try:
+            scores[(h, a)] = float(outcome_prices[0])
+        except (ValueError, IndexError):
+            continue
+
+    return scores
+
+
 # ---------------------------------------------------------------------------
 # Main ingest function
 # ---------------------------------------------------------------------------
@@ -255,6 +294,8 @@ async def ingest_per_match_polymarket(
 
             slugs = _build_slug_candidates(home_code, away_code, match.kickoff_utc)
             probs = None
+            exact_scores: dict[tuple[int, int], float] = {}
+            is_swapped = False
 
             for slug in slugs:
                 try:
@@ -280,15 +321,24 @@ async def ingest_per_match_polymarket(
 
                     probs = _extract_three_way(event, slug_home_pm, slug_away_pm)
                     if probs is not None:
-                        # If slug was swapped (away-home order), flip the probs
+                        # Check if slug was swapped (away-home order)
                         natural_home = _to_pm_code(home_code)
                         if home_code == "KOR":
                             natural_homes = set(_KOR_ALTERNATIVES)
                         else:
                             natural_homes = {natural_home}
-                        if slug_home_pm not in natural_homes:
-                            # Slug is swapped — swap home/away probs
+                        is_swapped = slug_home_pm not in natural_homes
+                        if is_swapped:
                             probs["home"], probs["away"] = probs["away"], probs["home"]
+
+                        # Extract exact scores
+                        raw_scores = _extract_exact_scores(event)
+                        if raw_scores:
+                            if is_swapped:
+                                # Flip h,a in scores to match our home/away
+                                exact_scores = {(a, h): p for (h, a), p in raw_scores.items()}
+                            else:
+                                exact_scores = raw_scores
                         break
 
                 except Exception:
@@ -300,7 +350,7 @@ async def ingest_per_match_polymarket(
                     continue
 
             if probs is not None:
-                results.append((forecast.id, probs))  # type: ignore[union-attr]
+                results.append((forecast.id, probs, exact_scores, home_code, away_code))  # type: ignore[union-attr]
                 updated += 1
                 log.info(
                     "polymarket_matches.scraped",
@@ -322,10 +372,22 @@ async def ingest_per_match_polymarket(
 
             await asyncio.sleep(_REQUEST_DELAY_S)
 
-    # Batch-update forecasts
+    # Batch-update forecasts + compute predicted scores
     if results:
+        from worldcup.model.score_predict import predict_score
+        from worldcup.models import TeamRating
+
         async with get_session() as session:
-            for forecast_id, probs in results:
+            ratings_rows = (await session.execute(select(TeamRating))).scalars().all()
+            ratings_by_code: dict[str, float] = {}
+            team_all = (await session.execute(select(Team))).scalars().all()
+            code_to_rating = {}
+            for t in team_all:
+                for r in ratings_rows:
+                    if r.team_id == t.id:
+                        code_to_rating[t.country_code] = r.rating
+
+            for forecast_id, probs, exact_scores, home_code, away_code in results:
                 fc = (
                     await session.execute(
                         select(MatchForecast).where(MatchForecast.id == forecast_id)
@@ -335,6 +397,18 @@ async def ingest_per_match_polymarket(
                 fc.p_draw_poly = probs["draw"]
                 fc.p_away_poly = probs["away"]
                 fc.edge_vs_poly = fc.p_home - probs["home"]
+
+                # Predicted score: blend model + polymarket exact scores
+                home_r = code_to_rating.get(home_code, 1500.0)
+                away_r = code_to_rating.get(away_code, 1500.0)
+                prediction = predict_score(
+                    home_r, away_r,
+                    poly_scores=exact_scores if exact_scores else None,
+                )
+                fc.predicted_score = prediction["score_str"]
+                fc.predicted_score_prob = prediction["prob"]
+                fc.expected_goals = prediction["expected_goals"]
+
                 session.add(fc)
             await session.commit()
 

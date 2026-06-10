@@ -471,6 +471,12 @@ h1, h2, h3, h4 { margin: 0; line-height: 1.25; }
   flex-wrap: wrap;
 }
 
+.predicted-score {
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: var(--accent);
+}
+
 /* ------------------------------------------------------------------
    Player card (golden boot)
    ------------------------------------------------------------------ */

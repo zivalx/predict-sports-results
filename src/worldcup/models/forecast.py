@@ -46,6 +46,9 @@ class MatchForecast(SQLModel, table=True):
     edge_vs_poly: float = 0.0
     model_version: str = "elo-v0"
     rationale_md: Optional[str] = None
+    predicted_score: Optional[str] = None       # e.g. "1-0"
+    predicted_score_prob: Optional[float] = None # probability of that score
+    expected_goals: Optional[float] = None       # expected total goals
 
 
 class TopScorerForecast(SQLModel, table=True):

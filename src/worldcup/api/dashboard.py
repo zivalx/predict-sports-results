@@ -110,6 +110,10 @@ class TodayMatchRow:
     p_draw: Optional[float] = None
     p_away: Optional[float] = None
     edge_vs_poly: Optional[float] = None
+    predicted_score: Optional[str] = None
+    predicted_score_prob: Optional[float] = None
+    expected_goals: Optional[float] = None
+    p_home_poly: Optional[float] = None
 
 
 @dataclass
@@ -208,6 +212,10 @@ async def _build_home_context() -> HomeContext:
                 p_draw=mf.p_draw if mf else None,
                 p_away=mf.p_away if mf else None,
                 edge_vs_poly=mf.edge_vs_poly if mf else None,
+                predicted_score=mf.predicted_score if mf else None,
+                predicted_score_prob=mf.predicted_score_prob if mf else None,
+                expected_goals=mf.expected_goals if mf else None,
+                p_home_poly=mf.p_home_poly if mf else None,
             ))
             if len(today_matches) >= 3:
                 break
@@ -264,6 +272,10 @@ async def home(request: Request):
             "p_draw": m.p_draw,
             "p_away": m.p_away,
             "edge_vs_poly": m.edge_vs_poly,
+            "predicted_score": m.predicted_score,
+            "predicted_score_prob": m.predicted_score_prob,
+            "expected_goals": m.expected_goals,
+            "p_home_poly": m.p_home_poly,
         }
         for m in ctx.today_matches
     ]
@@ -406,6 +418,9 @@ class MatchDetailContext:
     p_away_poly: Optional[float]
     edge_vs_poly: Optional[float]
     rationale_md: Optional[str]
+    predicted_score: Optional[str]
+    predicted_score_prob: Optional[float]
+    expected_goals: Optional[float]
     home_headlines: list[str]
     away_headlines: list[str]
 
@@ -490,6 +505,9 @@ async def match_detail(request: Request, match_id: int):
             p_away_poly=mf.p_away_poly if mf else None,
             edge_vs_poly=mf.edge_vs_poly if mf else None,
             rationale_md=mf.rationale_md if mf else None,
+            predicted_score=mf.predicted_score if mf else None,
+            predicted_score_prob=mf.predicted_score_prob if mf else None,
+            expected_goals=mf.expected_goals if mf else None,
             home_headlines=home_headlines,
             away_headlines=away_headlines,
         )
@@ -512,6 +530,9 @@ async def match_detail(request: Request, match_id: int):
         "p_away_poly": ctx.p_away_poly,
         "edge_vs_poly": ctx.edge_vs_poly,
         "rationale_md": ctx.rationale_md,
+        "predicted_score": ctx.predicted_score,
+        "predicted_score_prob": ctx.predicted_score_prob,
+        "expected_goals": ctx.expected_goals,
         "home_headlines": ctx.home_headlines,
         "away_headlines": ctx.away_headlines,
         "retro": retro,
