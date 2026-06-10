@@ -13,6 +13,7 @@ from worldcup.ingest.fixtures import ingest_teams_and_fixtures
 from worldcup.ingest.news import ingest_news_for_teams
 from worldcup.ingest.players import load_seed_players
 from worldcup.ingest.polymarket import ingest_outright_winner, ingest_top_scorer_market
+from worldcup.ingest.polymarket_matches import ingest_per_match_polymarket
 from worldcup.ingest.reddit import ingest_reddit_for_competition
 from worldcup.ingest.results import ingest_completed_results
 from worldcup.log import get_logger
@@ -165,6 +166,9 @@ async def run_refresh(
             await _step("forecast.top_scorer", generate_top_scorer_forecast(snap.id, sim_result))
         else:
             result.add(StepResult("forecast.top_scorer", ok=True, detail="skipped: no sim result"))
+
+        # --- Polymarket per-match odds (scrapes match pages) ---
+        await _step("ingest.polymarket.matches", ingest_per_match_polymarket())
 
         # --- Rationale phase ---
         if claude_client is not None and not claude_client.is_disabled():
