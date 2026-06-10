@@ -64,9 +64,17 @@
       {% for m in group.matches %}
       <tr>
         <td class="col-team">
+          {% if m.match_id is defined and m.match_id %}
+          <a href="/match/{{ m.match_id }}" style="text-decoration: none; color: inherit;">
+            <span class="bet-home">{{ m.home_name }}</span>
+            <span class="muted"> v </span>
+            <span class="bet-away">{{ m.away_name }}</span>
+          </a>
+          {% else %}
           <span class="bet-home">{{ m.home_name }}</span>
           <span class="muted"> v </span>
           <span class="bet-away">{{ m.away_name }}</span>
+          {% endif %}
         </td>
         <td class="small muted">{{ m.kickoff_utc.strftime('%b %-d %H:%M') }}</td>
         {% if m.p_home is not none %}
