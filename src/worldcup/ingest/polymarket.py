@@ -20,7 +20,8 @@ async def ingest_outright_winner(collector) -> dict[str, int]:
     """Pulls the WC 2026 outright winner market from Polymarket and writes one OddsSnapshot row."""
     from connectors.polymarket import MarketCollectSpec  # noqa: WPS433
 
-    spec = MarketCollectSpec(active=True, order="volume", ascending=False, limit=50)
+    # Search specifically for World Cup markets instead of relying on top-50 by volume
+    spec = MarketCollectSpec(query="world cup 2026 winner", active=True, order="volume", ascending=False, limit=50)
     result = await collector.fetch_markets(spec)
     if result.status != "success" or not result.markets:
         return {"snapshots_inserted": 0, "teams_matched": 0}
@@ -70,7 +71,7 @@ async def ingest_top_scorer_market(collector) -> dict[str, int]:
     """Pulls the WC 2026 top-scorer market from Polymarket and writes one OddsSnapshot row."""
     from connectors.polymarket import MarketCollectSpec  # noqa: WPS433
 
-    spec = MarketCollectSpec(active=True, order="volume", ascending=False, limit=50)
+    spec = MarketCollectSpec(query="world cup 2026 top scorer", active=True, order="volume", ascending=False, limit=50)
     result = await collector.fetch_markets(spec)
     if result.status != "success" or not result.markets:
         return {"snapshots_inserted": 0, "outcomes_recorded": 0}
