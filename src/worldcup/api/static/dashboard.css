@@ -670,7 +670,12 @@ h1, h2, h3, h4 { margin: 0; line-height: 1.25; }
 /* Only stick thead on standalone full-page tables, not nested ones */
 .table-modern.sticky-header thead {
   position: sticky;
-  top: 3rem; /* height of sticky nav */
+  top: 3.25rem; /* just below sticky nav */
+}
+
+.table-modern.sticky-header th {
+  background: var(--surface);
+  box-shadow: 0 1px 0 var(--border-strong);
 }
 
 .table-modern th {
