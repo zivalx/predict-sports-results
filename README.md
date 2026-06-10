@@ -14,15 +14,14 @@ World Cup 2026 pre-match forecast feed. See `docs/specs/2026-05-21-worldcup-desi
 
 worldcup depends on the `connectors` library (https://github.com/zivalx/collectors)
 via a pinned git URL. For day-to-day development, `pyproject.toml`'s
-`[tool.uv.sources]` overrides this with a local editable path
-(`/Users/ziv.a/repos_/collectors/collectors`) so you can iterate on both
-libraries simultaneously. The override is a per-developer overlay — it
-doesn't affect what other machines / CI / Hetzner resolves, which still
-pulls from GitHub.
+`[tool.uv.sources]` overrides this with a local editable path so you can
+iterate on both libraries simultaneously. The override is a per-developer
+overlay — it doesn't affect what other machines / CI / Hetzner resolves,
+which still pulls from GitHub.
 
 To bump the pinned connectors version:
 
-1. `cd /Users/ziv.a/repos_/collectors/collectors && git push` your changes
+1. Push your connectors changes
 2. `git ls-remote https://github.com/zivalx/collectors.git HEAD` → copy SHA
 3. Update the `git+https://...@<SHA>` in `pyproject.toml`'s
    `[project.dependencies]` section

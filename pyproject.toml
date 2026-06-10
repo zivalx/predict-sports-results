@@ -51,9 +51,6 @@ line-length = 100
 target-version = "py312"
 
 [tool.uv.sources]
-# Local dev convenience: when /Users/ziv.a/repos_/collectors/collectors exists,
-# uv uses the editable local checkout instead of the pinned git URL. This lets
-# the user iterate on `connectors` and `worldcup` simultaneously without
-# committing+pushing every change. Other machines just fall through to the
-# git URL in [project.dependencies].
-connectors = { path = "/Users/ziv.a/repos_/collectors/collectors", editable = true }
+# Local dev: point this to your local connectors checkout for simultaneous
+# development. Other machines fall through to the git URL in [project.dependencies].
+# connectors = { path = "../collectors/collectors", editable = true }
