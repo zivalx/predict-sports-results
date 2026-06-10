@@ -90,10 +90,7 @@ _NEXT_DATA_RE = re.compile(
     re.DOTALL,
 )
 
-_USER_AGENT = (
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-    "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"
-)
+_USER_AGENT = "worldcup/0.1 (+https://github.com/zivalx/predict-sports-results)"
 
 
 def _extract_next_data(html: str) -> Optional[dict]:
