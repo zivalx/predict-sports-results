@@ -1,8 +1,8 @@
-"""Apply Elo updates to TeamRating rows from newly-completed matches.
+"""Apply Elo updates from completed matches.
 
-Pure orchestration: pulls match scores from DB, computes new ratings via
-elo.update_ratings, persists. Idempotent at the call level — the caller passes
-only newly-completed match ids; this function does not re-process matches.
+Self-contained: queries for FT matches where elo_applied=False, processes
+them in kickoff order, marks each as applied. No dependency on other
+pipeline steps passing match IDs — idempotent and self-healing.
 """
 
 from datetime import datetime, timezone
@@ -26,48 +26,36 @@ def _result_from_score(home_score: int, away_score: int) -> float:
     return 0.5
 
 
-async def apply_elo_updates(completed_match_ids: list[int]) -> dict:
-    """Apply Elo updates for the given completed match ids.
+async def apply_elo_updates(completed_match_ids: list[int] | None = None) -> dict:
+    """Apply Elo updates for all completed matches not yet processed.
 
-    Also catches up on any FT matches whose Elo was never applied (all ratings
-    still at "seed" source). This handles the case where results were ingested
-    in a previous refresh but Elo wasn't applied at that time.
+    Finds FT matches with scores where elo_applied=False, processes them
+    in kickoff order, and marks each as applied.
+
+    The completed_match_ids parameter is accepted for backward compatibility
+    but ignored — the function discovers unprocessed matches on its own.
 
     Returns {"updates_applied": int, "matches_missing_ratings": int}.
-    Matches lacking ratings for either team get a default INITIAL_RATING.
     """
-    # Catch up: find FT matches with scores that haven't been Elo-processed yet.
-    # We detect this by checking if ANY rating has source="in_tournament";
-    # if none do, all FT matches need processing.
-    async with get_session() as session:
-        has_tournament_ratings = (await session.execute(
-            select(TeamRating).where(TeamRating.source == "in_tournament").limit(1)
-        )).scalar_one_or_none()
-
-        if has_tournament_ratings is None:
-            # No Elo updates ever applied — find all FT matches with scores
-            ft_matches = (await session.execute(
-                select(Match)
-                .where(Match.status == "FT")
-                .where(Match.home_score.is_not(None))
-                .where(Match.away_score.is_not(None))
-                .order_by(Match.kickoff_utc.asc())
-            )).scalars().all()
-            catchup_ids = [m.id for m in ft_matches]
-            if catchup_ids:
-                completed_match_ids = list(set(completed_match_ids) | set(catchup_ids))
-
-    if not completed_match_ids:
-        return {"updates_applied": 0, "matches_missing_ratings": 0}
-
     updates_applied = 0
     missing_ratings = 0
     now = datetime.now(timezone.utc)
 
     async with get_session() as session:
+        # Find all FT matches with scores that haven't had Elo applied
         matches = (await session.execute(
-            select(Match).where(Match.id.in_(completed_match_ids))
+            select(Match)
+            .where(Match.status == "FT")
+            .where(Match.home_score.is_not(None))
+            .where(Match.away_score.is_not(None))
+            .where(Match.elo_applied == False)  # noqa: E712
+            .where(Match.home_team_id.is_not(None))
+            .where(Match.away_team_id.is_not(None))
+            .order_by(Match.kickoff_utc.asc())
         )).scalars().all()
+
+        if not matches:
+            return {"updates_applied": 0, "matches_missing_ratings": 0}
 
         ratings_by_team = {
             r.team_id: r
@@ -75,11 +63,6 @@ async def apply_elo_updates(completed_match_ids: list[int]) -> dict:
         }
 
         for m in matches:
-            if (
-                m.home_team_id is None or m.away_team_id is None
-                or m.home_score is None or m.away_score is None
-            ):
-                continue
             home_rating_row = ratings_by_team.get(m.home_team_id)
             away_rating_row = ratings_by_team.get(m.away_team_id)
 
@@ -114,6 +97,8 @@ async def apply_elo_updates(completed_match_ids: list[int]) -> dict:
             away_rating_row.rating = new_away
             away_rating_row.last_updated = now
             away_rating_row.source = "in_tournament"
+
+            m.elo_applied = True
             updates_applied += 1
 
         await session.commit()

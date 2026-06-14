@@ -119,17 +119,12 @@ async def run_refresh(
 
     # --- Ingest phase: each source is best-effort ---
 
-    result_match_ids: list[int] = []
-
     await _step("ingest.fixtures", ingest_teams_and_fixtures(football_client))
-
-    results_summary = await _step("ingest.results", ingest_completed_results(football_client))
-    if isinstance(results_summary, dict):
-        result_match_ids = results_summary.get("match_ids", [])
+    await _step("ingest.results", ingest_completed_results(football_client))
 
     await _step("ratings.seed", load_seed_ratings())
     await _step("players.seed", load_seed_players())
-    await _step("elo.updates", apply_elo_updates(result_match_ids))
+    await _step("elo.updates", apply_elo_updates())
 
     if gnews_collector is not None:
         await _step("ingest.news", ingest_news_for_teams(gnews_collector))

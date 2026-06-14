@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -66,7 +66,7 @@ async def test_home_shows_contenders_and_next_matches():
             group_label="A",
             home_team_id=teams["Brazil"].id,
             away_team_id=teams["France"].id,
-            kickoff_utc=datetime(2026, 6, 11, 20, 0, tzinfo=timezone.utc),
+            kickoff_utc=datetime.now(timezone.utc) + timedelta(days=3),
             status="SCHEDULED",
         ))
         await session.commit()
