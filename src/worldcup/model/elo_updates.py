@@ -29,9 +29,34 @@ def _result_from_score(home_score: int, away_score: int) -> float:
 async def apply_elo_updates(completed_match_ids: list[int]) -> dict:
     """Apply Elo updates for the given completed match ids.
 
+    Also catches up on any FT matches whose Elo was never applied (all ratings
+    still at "seed" source). This handles the case where results were ingested
+    in a previous refresh but Elo wasn't applied at that time.
+
     Returns {"updates_applied": int, "matches_missing_ratings": int}.
     Matches lacking ratings for either team get a default INITIAL_RATING.
     """
+    # Catch up: find FT matches with scores that haven't been Elo-processed yet.
+    # We detect this by checking if ANY rating has source="in_tournament";
+    # if none do, all FT matches need processing.
+    async with get_session() as session:
+        has_tournament_ratings = (await session.execute(
+            select(TeamRating).where(TeamRating.source == "in_tournament").limit(1)
+        )).scalar_one_or_none()
+
+        if has_tournament_ratings is None:
+            # No Elo updates ever applied — find all FT matches with scores
+            ft_matches = (await session.execute(
+                select(Match)
+                .where(Match.status == "FT")
+                .where(Match.home_score.is_not(None))
+                .where(Match.away_score.is_not(None))
+                .order_by(Match.kickoff_utc.asc())
+            )).scalars().all()
+            catchup_ids = [m.id for m in ft_matches]
+            if catchup_ids:
+                completed_match_ids = list(set(completed_match_ids) | set(catchup_ids))
+
     if not completed_match_ids:
         return {"updates_applied": 0, "matches_missing_ratings": 0}
 
